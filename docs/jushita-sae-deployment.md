@@ -40,8 +40,8 @@ npm run db:migrate
 ```text
 NODE_ENV=production
 PORT=3000
-ALIBABA_APP_KEY=3255489
-ALIBABA_APP_SECRET=<在SAE控制台秘密变量中填写>
+ALIBABA_APP_KEY=3432336
+ALIBABA_APP_SECRET=<仅引用SAE保密字典中的同名键>
 ALIBABA_CALLBACK_URL=https://你的测试域名/api/auth/1688/callback
 ALIBABA_AUTHORIZE_URL=https://auth.1688.com/oauth/authorize
 ALIBABA_GATEWAY_URL=https://gw.open.1688.com
@@ -51,7 +51,7 @@ MYSQL_URL=mysql://用户名:密码@RDS内网地址:3306/dianchao_distribution
 WEB_ORIGIN=https://你的测试域名
 ```
 
-不要把 `ALIBABA_APP_SECRET`、`TOKEN_ENCRYPTION_KEY` 或数据库密码写入镜像、仓库、构建日志或聊天。
+`ALIBABA_APP_SECRET` 必须保存在应用所在命名空间的 SAE 保密字典（K8s Secret）中，并以“引用保密字典”方式注入。不要把 `ALIBABA_APP_SECRET`、`TOKEN_ENCRYPTION_KEY` 或数据库密码写入镜像、仓库、普通环境变量、构建日志或聊天。
 
 ## 5. 健康检查
 
@@ -59,11 +59,11 @@ WEB_ORIGIN=https://你的测试域名
 - HTTP路径：`/api/health`
 - 成功状态码：`200`
 
-健康接口会返回当前 AppKey、连接器模式及1688是否已配置，但不会返回任何密钥。
+健康接口只返回 `{"status":"ok"}`，不公开 AppKey、连接器模式、凭据配置状态或任何密钥。
 
 ## 6. 1688开放平台配置
 
-当前应用为“电潮分销”，AppKey `3255489`。
+当前应用为“电潮分销”，AppKey `3432336`。
 
 - 授权回调地址：必须与 `ALIBABA_CALLBACK_URL` 完全一致。
 - 日常使用入口：填写测试环境首页 `https://你的测试域名/`；若平台要求托管授权回调入口，则使用 `/api/auth/1688/callback`。

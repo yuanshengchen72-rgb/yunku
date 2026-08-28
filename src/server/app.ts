@@ -92,12 +92,10 @@ export async function buildApp(options: BuildAppOptions) {
     return token ? sessions.get(token) : undefined;
   }
 
-  app.get("/api/health", async () => ({
-    status: "ok",
-    connectorMode: options.config.connectorMode,
-    appKey: options.config.alibabaAppKey,
-    alibabaConfigured: Boolean(oauthClient)
-  }));
+  app.get("/api/health", async (_request, reply) => {
+    reply.header("cache-control", "no-store");
+    return { status: "ok" };
+  });
 
   app.get("/api/auth/1688/start", async (request, reply) => {
     if (!oauthClient) {

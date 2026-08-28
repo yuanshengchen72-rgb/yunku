@@ -25,7 +25,7 @@ describe("1688 authorization", () => {
   it("exchanges a code and normalizes the 1688 account", async () => {
     let requestedBody = "";
     const oauth = new AlibabaOAuthClient({
-      appKey: "3255489",
+      appKey: "3432336",
       appSecret: "test-secret",
       callbackUrl: "https://example.com/api/auth/1688/callback",
       authorizeUrl: "https://auth.1688.com/oauth/authorize",

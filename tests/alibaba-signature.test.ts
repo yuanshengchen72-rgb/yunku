@@ -14,8 +14,8 @@ describe("1688 signatures", () => {
   });
 
   it("is stable regardless of parameter insertion order", () => {
-    const first = createAlibabaParameterSignature({ state: "x", client_id: "3255489" }, "secret");
-    const second = createAlibabaParameterSignature({ client_id: "3255489", state: "x" }, "secret");
+    const first = createAlibabaParameterSignature({ state: "x", client_id: "3432336" }, "secret");
+    const second = createAlibabaParameterSignature({ client_id: "3432336", state: "x" }, "secret");
     expect(first).toBe(second);
   });
 });

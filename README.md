@@ -5,7 +5,7 @@
 ## 已完成
 
 - React + Fastify + TypeScript 单仓库工程。
-- AppKey `3255489` 的1688 OAuth授权开始页与回调。
+- AppKey `3432336` 的1688 OAuth授权开始页与回调。
 - 授权码换取 `access_token/refresh_token`、过期前自动刷新。
 - URL Path + 排序参数的 HMAC-SHA1 签名。
 - `alibaba.fenxiao.productInfo.get` 真实连接器及内部商品模型转换。
@@ -28,7 +28,7 @@
 
 1. 准备MySQL数据库，设置 `MYSQL_URL`，执行 `npm run db:migrate`。
 2. 生成32字节Base64随机密钥，设置为 `TOKEN_ENCRYPTION_KEY`。
-3. 在服务器环境变量中填写 `ALIBABA_APP_SECRET`，不要写入仓库或发送到聊天中。
+3. 在 SAE 保密字典（K8s Secret）中保存 `ALIBABA_APP_SECRET`，部署时引用该键作为同名环境变量；不要将值写入普通环境变量、镜像、仓库、日志或聊天。
 4. 将 `ALIBABA_CALLBACK_URL` 改成可公网HTTPS访问的完整地址，例如：
 
    ```text

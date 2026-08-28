@@ -11,7 +11,7 @@ const testConfig: ServerConfig = {
   nodeEnv: "test",
   port: 3000,
   webOrigin: "http://localhost:5173",
-  alibabaAppKey: "3255489",
+  alibabaAppKey: "3432336",
   alibabaCallbackUrl: "http://localhost:3000/api/auth/1688/callback",
   alibabaAuthorizeUrl: "https://auth.1688.com/oauth/authorize",
   alibabaGatewayUrl: "https://gw.open.1688.com",
@@ -20,6 +20,16 @@ const testConfig: ServerConfig = {
 };
 
 describe("server API", () => {
+  it("returns a minimal health response without configuration details", async () => {
+    const app = await buildApp({ config: testConfig });
+    const response = await app.inject({ method: "GET", url: "/api/health" });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toEqual({ status: "ok" });
+    expect(response.headers["cache-control"]).toBe("no-store");
+    await app.close();
+  });
+
   it("creates a development session and imports an offer", async () => {
     const app = await buildApp({ config: testConfig });
     const sessionResponse = await app.inject({
@@ -76,7 +86,7 @@ describe("server API", () => {
       new TokenCipher(Buffer.alloc(32, 3))
     );
     const oauthClient = new AlibabaOAuthClient({
-      appKey: "3255489",
+      appKey: "3432336",
       appSecret: "test-secret",
       callbackUrl: testConfig.alibabaCallbackUrl,
       authorizeUrl: testConfig.alibabaAuthorizeUrl,
