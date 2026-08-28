@@ -1,0 +1,12 @@
+node_modules
+dist
+drizzle
+.git
+.env
+.env.*
+!.env.example
+npm-debug.log*
+docs
+tests
+*.png
+*.zip
