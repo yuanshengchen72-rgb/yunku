@@ -10,5 +10,7 @@ describe("MySQL migration compatibility", () => {
 
     expect(migration).toContain("`expires_at` datetime");
     expect(migration).toContain("`refresh_token_expires_at` datetime");
+    expect(migration).not.toContain("DEFAULT (now())");
+    expect(migration).toContain("DEFAULT CURRENT_TIMESTAMP");
   });
 });
