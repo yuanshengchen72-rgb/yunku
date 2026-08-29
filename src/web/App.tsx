@@ -139,7 +139,12 @@ export function App() {
                   <Col xs={24} lg={9}>
                     <div className="image-grid">
                       {offer.imageUrls.map((url, index) => (
-                        <Image key={`${url}-${index}`} src={url} alt={`商品图 ${index + 1}`} />
+                        <Image
+                          key={`${url}-${index}`}
+                          src={url}
+                          alt={`商品图 ${index + 1}`}
+                          referrerPolicy="no-referrer"
+                        />
                       ))}
                     </div>
                   </Col>

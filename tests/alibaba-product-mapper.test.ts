@@ -56,4 +56,17 @@ describe("1688 product mapper", () => {
       attributes: { 颜色: "红" }
     });
   });
+
+  it("upgrades legacy HTTP image URLs for HTTPS storefronts", () => {
+    const result = mapAlibabaProductInfo({
+      productInfo: {
+        productID: 789870588120,
+        subject: "HTTPS 图片商品",
+        categoryID: 1042954,
+        image: { images: ["http://cbu01.alicdn.com/legacy.jpg"] }
+      }
+    }, "789870588120");
+
+    expect(result.imageUrls).toEqual(["https://cbu01.alicdn.com/legacy.jpg"]);
+  });
 });

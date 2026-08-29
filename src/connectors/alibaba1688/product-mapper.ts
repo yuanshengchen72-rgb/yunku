@@ -44,7 +44,9 @@ function imageUrl(value: unknown): string | undefined {
     if (/^\/?img\//i.test(trimmed)) {
       return new URL(trimmed.replace(/^\//, ""), "https://cbu01.alicdn.com/").toString();
     }
-    return new URL(trimmed).toString();
+    const url = new URL(trimmed);
+    if (url.protocol === "http:") url.protocol = "https:";
+    return url.toString();
   } catch {
     return undefined;
   }
