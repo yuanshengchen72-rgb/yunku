@@ -97,6 +97,11 @@ export async function buildApp(options: BuildAppOptions) {
     return { status: "ok" };
   });
 
+  app.get("/api/runtime", async (_request, reply) => {
+    reply.header("cache-control", "no-store");
+    return { connectorMode: options.config.connectorMode };
+  });
+
   app.get("/api/auth/1688/start", async (request, reply) => {
     if (!oauthClient) {
       return reply.code(503).send({ code: "ALIBABA_NOT_CONFIGURED", message: "1688密钥尚未配置" });

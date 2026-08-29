@@ -59,18 +59,21 @@ async function loadSession() {
 
 export async function loadAppState(): Promise<AppState> {
   await exchangeLoginTicketFromUrl();
-  const healthResponse = await fetch("/api/health");
-  if (!healthResponse.ok) throw new Error("服务暂不可用");
-  const health = (await healthResponse.json()) as { connectorMode: "mock" | "real" };
+  const [healthResponse, runtimeResponse] = await Promise.all([
+    fetch("/api/health"),
+    fetch("/api/runtime")
+  ]);
+  if (!healthResponse.ok || !runtimeResponse.ok) throw new Error("服务暂不可用");
+  const runtime = (await runtimeResponse.json()) as { connectorMode: "mock" | "real" };
   let session = await loadSession();
-  if (!session && health.connectorMode === "mock") {
+  if (!session && runtime.connectorMode === "mock") {
     await createDevToken();
     session = await loadSession();
   }
   return {
-    mode: health.connectorMode,
+    mode: runtime.connectorMode,
     session,
-    connected: health.connectorMode === "mock" || Boolean(session?.alibabaAuthorized)
+    connected: runtime.connectorMode === "mock" || Boolean(session?.alibabaAuthorized)
   };
 }
 

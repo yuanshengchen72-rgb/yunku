@@ -30,6 +30,16 @@ describe("server API", () => {
     await app.close();
   });
 
+  it("exposes only the public connector mode through the runtime endpoint", async () => {
+    const app = await buildApp({ config: testConfig });
+    const response = await app.inject({ method: "GET", url: "/api/runtime" });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toEqual({ connectorMode: "mock" });
+    expect(response.body).not.toContain(testConfig.alibabaAppKey);
+    await app.close();
+  });
+
   it("creates a development session and imports an offer", async () => {
     const app = await buildApp({ config: testConfig });
     const sessionResponse = await app.inject({
