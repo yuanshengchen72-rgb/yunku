@@ -11,9 +11,9 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
       locale={zhCN}
       theme={{
         token: {
-          colorPrimary: "#2563eb",
-          borderRadius: 10,
-          fontFamily: "Inter, 'PingFang SC', 'Microsoft YaHei', sans-serif"
+          colorPrimary: "#ff4d0a",
+          borderRadius: 5,
+          fontFamily: "'PingFang SC', 'Microsoft YaHei', Arial, sans-serif"
         }
       }}
     >

@@ -226,13 +226,13 @@ PostgreSQL 16 已是官方推荐且 CI-tested，但当前 `composer.json` 即使
 - 跨客户强隔离的 `tenant_id`/独立数据库模型；
 - 下游店铺铺货、采购下单、支付、物流和售后。
 
-这是根据[官方 3.0 功能清单](https://docs.unopim.com/3.0/introduction/)、[官方可选包列表](https://devdocs.unopim.com/3.0/introduction/installation.html)作出的边界判断。UnoPim 可以作为“商品域底座”，但“自盈分销”仍需开发多租户门户、1688 connector 和订单/渠道模块。
+这是根据[官方 3.0 功能清单](https://docs.unopim.com/3.0/introduction/)、[官方可选包列表](https://devdocs.unopim.com/3.0/introduction/installation.html)作出的边界判断。UnoPim 可以作为“商品域底座”，但“电潮分销”仍需开发多租户门户、1688 connector 和订单/渠道模块。
 
 ### 7. `latest` 与移动分支会破坏可重复部署
 
 官方 Compose 的默认镜像标签是 `latest`，快速启动文档从 `master` 获取 YAML；仓库安全流程又会持续把修复先提交到 `master` 后再回移。这些默认值方便体验，但生产环境必须固定 tag/digest，并把数据库 migration 放在单一 release job 中，避免多副本同时迁移。[compose.yaml](https://github.com/unopim/unopim/blob/3.0/compose.yaml)、[README 部署提示](https://github.com/unopim/unopim#installation)、[SECURITY.md](https://github.com/unopim/unopim/blob/3.0/SECURITY.md)
 
-## 是否适合“自盈分销”新项目直接采用最新版
+## 是否适合“电潮分销”新项目直接采用最新版
 
 ### 适合，但需满足以下条件
 
@@ -251,4 +251,4 @@ PostgreSQL 16 已是官方推荐且 CI-tested，但当前 `composer.json` 即使
 
 **技术基线：UnoPim v3.0.0 + DAM v3.0.0（如需要素材库）+ PostgreSQL 16 + Redis 7 + 官方匹配的 Elasticsearch + S3/OSS对象存储。**
 
-对“自盈分销”而言，3.0 相比 2.1 的两级变体、商品继承、自定义关联、多 Webhook、增量导出、REST API 扩展、PostgreSQL 和现代化后台都更合适；全新项目没有旧版迁移负担，因此应从 3.0 起步。与此同时，它刚经历重大升级且支持周期仍为 TBD，建议先固定 v3.0.0 做 MVP，等首个 3.0 patch 经回归验证后再进入正式商用规模。
+对“电潮分销”而言，3.0 相比 2.1 的两级变体、商品继承、自定义关联、多 Webhook、增量导出、REST API 扩展、PostgreSQL 和现代化后台都更合适；全新项目没有旧版迁移负担，因此应从 3.0 起步。与此同时，它刚经历重大升级且支持周期仍为 TBD，建议先固定 v3.0.0 做 MVP，等首个 3.0 patch 经回归验证后再进入正式商用规模。

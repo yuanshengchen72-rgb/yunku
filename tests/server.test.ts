@@ -91,6 +91,101 @@ describe("server API", () => {
     await app.close();
   });
 
+  it("binds a WeChat store without returning its secret", async () => {
+    const app = await buildApp({ config: testConfig });
+    const sessionResponse = await app.inject({
+      method: "POST",
+      url: "/api/dev/session",
+      payload: { alibabaUserId: "buyer-store" }
+    });
+    const session = sessionResponse.json<{ token: string }>();
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/stores/wechat",
+      headers: { authorization: `Bearer ${session.token}` },
+      payload: {
+        name: "微信测试店",
+        appId: "wx1234567890",
+        appSecret: "super-secret-value"
+      }
+    });
+
+    expect(response.statusCode).toBe(201);
+    expect(response.json().data).toMatchObject({
+      name: "微信测试店",
+      platform: "WECHAT_SHOP",
+      status: "NORMAL"
+    });
+    expect(response.body).not.toContain("super-secret-value");
+    expect(response.body).not.toContain("wx1234567890");
+    const firstStoreId = response.json().data.id as string;
+    const rebound = await app.inject({
+      method: "POST",
+      url: "/api/stores/wechat",
+      headers: { authorization: `Bearer ${session.token}` },
+      payload: {
+        name: "微信测试店（已更新）",
+        appId: "wx1234567890",
+        appSecret: "rotated-secret-value"
+      }
+    });
+    expect(rebound.statusCode).toBe(201);
+    expect(rebound.json().data.id).toBe(firstStoreId);
+    const stores = await app.inject({
+      method: "GET",
+      url: "/api/stores",
+      headers: { authorization: `Bearer ${session.token}` }
+    });
+    expect(stores.json().data).toHaveLength(1);
+    await app.close();
+  });
+
+  it("creates one distribution task per offer and store", async () => {
+    const app = await buildApp({ config: testConfig });
+    const sessionResponse = await app.inject({
+      method: "POST",
+      url: "/api/dev/session",
+      payload: { alibabaUserId: "buyer-distribution" }
+    });
+    const { token } = sessionResponse.json<{ token: string }>();
+    const headers = { authorization: `Bearer ${token}` };
+
+    await app.inject({
+      method: "POST",
+      url: "/api/1688/offers/import-batch",
+      headers,
+      payload: { offerUrlOrIds: ["789870588118", "789870588119"] }
+    });
+    const storeResponses = await Promise.all(["一店", "二店"].map((name, index) => app.inject({
+      method: "POST",
+      url: "/api/stores/wechat",
+      headers,
+      payload: {
+        name,
+        appId: `wx12345678${index}`,
+        appSecret: `secret-value-${index}`
+      }
+    })));
+    const storeIds = storeResponses.map((response) => response.json().data.id as string);
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/distribution/batches",
+      headers,
+      payload: {
+        offerIds: ["789870588118", "789870588119"],
+        storeIds,
+        strategy: "ORDERED_AVERAGED"
+      }
+    });
+
+    expect(response.statusCode).toBe(201);
+    expect(response.json().data).toMatchObject({ targetStoreCount: 2, taskCount: 4 });
+    expect(response.json().data.jobs).toHaveLength(4);
+    const list = await app.inject({ method: "GET", url: "/api/distribution/batches", headers });
+    expect(list.json().data).toHaveLength(1);
+    await app.close();
+  });
+
   it("completes the 1688 OAuth callback and creates a cookie session", async () => {
     const authorizations = new EncryptedInMemoryAlibabaAuthorizationRepository(
       new TokenCipher(Buffer.alloc(32, 3))

@@ -1,16 +1,25 @@
 import path from "node:path";
-import { randomBytes } from "node:crypto";
+import { randomBytes, randomUUID } from "node:crypto";
 import Fastify, { type FastifyRequest } from "fastify";
 import cookie from "@fastify/cookie";
 import cors from "@fastify/cors";
 import staticPlugin from "@fastify/static";
 import { z } from "zod";
-import { importOfferRequestSchema, importOffersRequestSchema } from "../shared/contracts.js";
+import {
+  bindWechatStoreRequestSchema,
+  createDistributionBatchRequestSchema,
+  importOfferRequestSchema,
+  importOffersRequestSchema
+} from "../shared/contracts.js";
 import { InvalidOfferReferenceError } from "../domain/offer-id.js";
 import { ImportOfferService } from "../domain/import-offer.js";
 import {
   InMemoryOfferSnapshotRepository,
-  type OfferSnapshotRepository
+  InMemoryDistributionRepository,
+  InMemoryWechatStoreRepository,
+  type DistributionRepository,
+  type OfferSnapshotRepository,
+  type WechatStoreRepository
 } from "../domain/ports.js";
 import { MockAlibaba1688Connector } from "../connectors/alibaba1688/mock-connector.js";
 import {
@@ -30,6 +39,10 @@ import { SESSION_COOKIE_NAME, SessionStore, type Session } from "./session-store
 import { OAuthStateStore } from "./oauth-state-store.js";
 import { createMySqlRuntimeRepositories } from "../db/repositories.js";
 import { LoginTicketStore } from "./login-ticket-store.js";
+import {
+  WechatShopConnector,
+  type WechatCredentialValidation
+} from "../connectors/wechat-shop/connector.js";
 
 interface BuildAppOptions {
   config: ServerConfig;
@@ -37,6 +50,9 @@ interface BuildAppOptions {
   sessions?: SessionStore;
   authorizations?: AlibabaAuthorizationRepository;
   offers?: OfferSnapshotRepository;
+  stores?: WechatStoreRepository;
+  distributions?: DistributionRepository;
+  wechatConnector?: Pick<WechatShopConnector, "validateCredentials">;
   oauthClient?: AlibabaOAuthClient;
   oauthStates?: OAuthStateStore;
   loginTickets?: LoginTicketStore;
@@ -68,6 +84,16 @@ export async function buildApp(options: BuildAppOptions) {
   const repository = options.offers
     ?? mysqlRuntime?.offers
     ?? new InMemoryOfferSnapshotRepository();
+  const stores = options.stores
+    ?? mysqlRuntime?.stores
+    ?? new InMemoryWechatStoreRepository();
+  const distributions = options.distributions
+    ?? mysqlRuntime?.distributions
+    ?? new InMemoryDistributionRepository();
+  const wechatConnector = options.wechatConnector
+    ?? (options.config.connectorMode === "mock"
+      ? { validateCredentials: async (): Promise<WechatCredentialValidation> => ({ status: "NORMAL" }) }
+      : new WechatShopConnector());
   const oauthClient = options.oauthClient ?? createOAuthClient(options.config);
   const connector =
     options.connector ??
@@ -204,6 +230,108 @@ export async function buildApp(options: BuildAppOptions) {
       alibabaUserId: authorization?.alibabaUserId,
       accessTokenExpiresAt: authorization?.accessTokenExpiresAt?.toISOString()
     };
+  });
+
+  app.get("/api/1688/offers", async (request, reply) => {
+    const session = requireSession(request);
+    if (!session) return reply.code(401).send({ code: "UNAUTHORIZED" });
+    const query = z.object({ q: z.string().trim().max(120).optional() }).parse(request.query);
+    return { data: await repository.list(session.tenantId, query.q) };
+  });
+
+  app.get("/api/stores", async (request, reply) => {
+    const session = requireSession(request);
+    if (!session) return reply.code(401).send({ code: "UNAUTHORIZED" });
+    return { data: await stores.list(session.tenantId) };
+  });
+
+  app.post("/api/stores/wechat", async (request, reply) => {
+    const session = requireSession(request);
+    if (!session) return reply.code(401).send({ code: "UNAUTHORIZED" });
+    try {
+      const body = bindWechatStoreRequestSchema.parse(request.body);
+      const validation = await wechatConnector.validateCredentials(body.appId, body.appSecret);
+      const store = await stores.save(session.tenantId, {
+        id: randomUUID(),
+        name: body.name,
+        appId: body.appId,
+        appSecret: body.appSecret,
+        status: validation.status,
+        ...(validation.statusMessage ? { statusMessage: validation.statusMessage } : {})
+      });
+      return reply.code(201).send({ data: store });
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return reply.code(400).send({ code: "INVALID_REQUEST", message: "店铺名称或微信凭证格式不正确" });
+      }
+      request.log.error({ err: error }, "wechat store binding failed");
+      return reply.code(502).send({
+        code: "WECHAT_VALIDATION_FAILED",
+        message: error instanceof Error ? error.message : "微信小店验证失败"
+      });
+    }
+  });
+
+  app.delete("/api/stores/:storeId", async (request, reply) => {
+    const session = requireSession(request);
+    if (!session) return reply.code(401).send({ code: "UNAUTHORIZED" });
+    const params = z.object({ storeId: z.string().uuid() }).parse(request.params);
+    const removed = await stores.remove(session.tenantId, params.storeId);
+    if (!removed) return reply.code(404).send({ code: "STORE_NOT_FOUND", message: "店铺不存在" });
+    return reply.code(204).send();
+  });
+
+  app.get("/api/distribution/batches", async (request, reply) => {
+    const session = requireSession(request);
+    if (!session) return reply.code(401).send({ code: "UNAUTHORIZED" });
+    return { data: await distributions.listBatches(session.tenantId) };
+  });
+
+  app.get("/api/distribution/batches/:batchId", async (request, reply) => {
+    const session = requireSession(request);
+    if (!session) return reply.code(401).send({ code: "UNAUTHORIZED" });
+    const params = z.object({ batchId: z.string().uuid() }).parse(request.params);
+    const batch = await distributions.findBatch(session.tenantId, params.batchId);
+    if (!batch) return reply.code(404).send({ code: "BATCH_NOT_FOUND", message: "铺货记录不存在" });
+    return { data: batch };
+  });
+
+  app.post("/api/distribution/batches", async (request, reply) => {
+    const session = requireSession(request);
+    if (!session) return reply.code(401).send({ code: "UNAUTHORIZED" });
+    try {
+      const body = createDistributionBatchRequestSchema.parse(request.body);
+      const availableStores = await stores.list(session.tenantId);
+      const selectedStores = body.storeIds.map((storeId) => availableStores.find((store) => store.id === storeId));
+      if (selectedStores.some((store) => !store)) {
+        return reply.code(400).send({ code: "STORE_NOT_FOUND", message: "所选店铺不存在或已解绑" });
+      }
+      const invalidStore = selectedStores.find((store) => store?.status !== "NORMAL");
+      if (invalidStore) {
+        return reply.code(409).send({ code: "STORE_NOT_READY", message: `${invalidStore.name} 当前不可用` });
+      }
+      const selectedOffers = [];
+      for (const offerId of body.offerIds) {
+        const offer = await repository.findByOfferId(session.tenantId, offerId);
+        if (!offer) {
+          return reply.code(400).send({ code: "OFFER_NOT_IMPORTED", message: `商品 ${offerId} 尚未导入` });
+        }
+        selectedOffers.push(offer);
+      }
+      const batch = await distributions.createBatch(session.tenantId, {
+        offerIds: body.offerIds,
+        stores: selectedStores.filter((store) => store !== undefined),
+        offers: selectedOffers,
+        strategy: body.strategy
+      });
+      return reply.code(201).send({ data: batch });
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return reply.code(400).send({ code: "INVALID_REQUEST", message: "铺货参数不正确" });
+      }
+      request.log.error({ err: error }, "distribution batch creation failed");
+      return reply.code(500).send({ code: "DISTRIBUTION_FAILED", message: "创建铺货任务失败" });
+    }
   });
 
   app.post("/api/1688/offers/import", async (request, reply) => {

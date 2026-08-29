@@ -1,4 +1,10 @@
-import type { OfferSnapshot } from "../shared/contracts";
+import type {
+  BindWechatStoreRequest,
+  CreateDistributionBatchRequest,
+  DistributionBatch,
+  OfferSnapshot,
+  WechatStore
+} from "../shared/contracts";
 
 const TOKEN_KEY = "dianchao.dev.session";
 
@@ -67,6 +73,7 @@ export async function loadAppState(): Promise<AppState> {
   const runtime = (await runtimeResponse.json()) as { connectorMode: "mock" | "real" };
   let session = await loadSession();
   if (!session && runtime.connectorMode === "mock") {
+    sessionStorage.removeItem(TOKEN_KEY);
     await createDevToken();
     session = await loadSession();
   }
@@ -81,18 +88,61 @@ export function alibabaAuthorizationUrl(returnTo = "/"): string {
   return `/api/auth/1688/start?returnTo=${encodeURIComponent(returnTo)}`;
 }
 
-export async function importOffers(offerUrlOrIds: string[]): Promise<OfferSnapshot[]> {
-  const response = await fetch("/api/1688/offers/import-batch", {
-    method: "POST",
+async function apiRequest<T>(url: string, init?: RequestInit): Promise<T> {
+  const response = await fetch(url, {
+    ...init,
     credentials: "same-origin",
     headers: {
-      "content-type": "application/json",
-      ...devAuthorizationHeader()
-    },
+      ...(init?.body ? { "content-type": "application/json" } : {}),
+      ...devAuthorizationHeader(),
+      ...init?.headers
+    }
+  });
+  if (response.status === 204) return undefined as T;
+  const body = (await response.json().catch(() => ({}))) as { data?: T; message?: string };
+  if (!response.ok) throw new Error(body.message ?? "请求失败");
+  return (body.data ?? body) as T;
+}
+
+export function importOffers(offerUrlOrIds: string[]): Promise<OfferSnapshot[]> {
+  return apiRequest("/api/1688/offers/import-batch", {
+    method: "POST",
     body: JSON.stringify({ offerUrlOrIds })
   });
+}
 
-  const body = (await response.json()) as { data?: OfferSnapshot[]; message?: string };
-  if (!response.ok || !body.data) throw new Error(body.message ?? "导入商品失败");
-  return body.data;
+export function listOffers(query = ""): Promise<OfferSnapshot[]> {
+  const params = new URLSearchParams();
+  if (query.trim()) params.set("q", query.trim());
+  return apiRequest(`/api/1688/offers${params.size ? `?${params}` : ""}`);
+}
+
+export function listStores(): Promise<WechatStore[]> {
+  return apiRequest("/api/stores");
+}
+
+export function bindWechatStore(input: BindWechatStoreRequest): Promise<WechatStore> {
+  return apiRequest("/api/stores/wechat", {
+    method: "POST",
+    body: JSON.stringify(input)
+  });
+}
+
+export function removeStore(storeId: string): Promise<void> {
+  return apiRequest(`/api/stores/${storeId}`, { method: "DELETE" });
+}
+
+export function createDistributionBatch(input: CreateDistributionBatchRequest): Promise<DistributionBatch> {
+  return apiRequest("/api/distribution/batches", {
+    method: "POST",
+    body: JSON.stringify(input)
+  });
+}
+
+export function listDistributionBatches(): Promise<DistributionBatch[]> {
+  return apiRequest("/api/distribution/batches");
+}
+
+export function loadDistributionBatch(batchId: string): Promise<DistributionBatch> {
+  return apiRequest(`/api/distribution/batches/${batchId}`);
 }

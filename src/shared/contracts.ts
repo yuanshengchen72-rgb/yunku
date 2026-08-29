@@ -30,3 +30,85 @@ export const offerSnapshotSchema = z.object({
 });
 
 export type OfferSnapshot = z.infer<typeof offerSnapshotSchema>;
+
+export const distributionStrategySchema = z.enum([
+  "ORDERED_AVERAGED",
+  "RANDOM_AVERAGED",
+  "RANDOM",
+  "REPEATED"
+]);
+
+export type DistributionStrategy = z.infer<typeof distributionStrategySchema>;
+
+export const storeStatusSchema = z.enum([
+  "NORMAL",
+  "CREDENTIAL_INVALID",
+  "WHITELIST_ABNORMAL"
+]);
+
+export const wechatStoreSchema = z.object({
+  id: z.string().uuid(),
+  name: z.string(),
+  appIdMasked: z.string(),
+  platform: z.literal("WECHAT_SHOP"),
+  status: storeStatusSchema,
+  statusMessage: z.string().optional(),
+  createdAt: z.iso.datetime(),
+  updatedAt: z.iso.datetime()
+});
+
+export type WechatStore = z.infer<typeof wechatStoreSchema>;
+
+export const bindWechatStoreRequestSchema = z.object({
+  name: z.string().trim().min(1).max(80),
+  appId: z.string().trim().min(6).max(128),
+  appSecret: z.string().trim().min(8).max(256)
+});
+
+export type BindWechatStoreRequest = z.infer<typeof bindWechatStoreRequestSchema>;
+
+export const createDistributionBatchRequestSchema = z.object({
+  offerIds: z.array(z.string().regex(/^\d{6,30}$/)).min(1).max(20),
+  storeIds: z.array(z.string().uuid()).min(1),
+  strategy: distributionStrategySchema
+});
+
+export type CreateDistributionBatchRequest = z.infer<typeof createDistributionBatchRequestSchema>;
+
+export const distributionJobStatusSchema = z.enum([
+  "QUEUED",
+  "PROCESSING",
+  "SUBMITTED",
+  "REVIEWING",
+  "LISTED",
+  "FAILED"
+]);
+
+export const distributionJobSchema = z.object({
+  id: z.string().uuid(),
+  batchId: z.string().uuid(),
+  offerId: z.string(),
+  offerTitle: z.string(),
+  storeId: z.string().uuid(),
+  storeName: z.string(),
+  status: distributionJobStatusSchema,
+  statusMessage: z.string().optional(),
+  createdAt: z.iso.datetime(),
+  updatedAt: z.iso.datetime()
+});
+
+export type DistributionJob = z.infer<typeof distributionJobSchema>;
+
+export const distributionBatchSchema = z.object({
+  id: z.string().uuid(),
+  recordNumber: z.number().int().positive(),
+  strategy: distributionStrategySchema,
+  targetStoreCount: z.number().int().positive(),
+  taskCount: z.number().int().positive(),
+  status: z.enum(["QUEUED", "RUNNING", "SUCCESS", "PARTIAL_SUCCESS", "FAILED"]),
+  createdAt: z.iso.datetime(),
+  updatedAt: z.iso.datetime(),
+  jobs: z.array(distributionJobSchema).optional()
+});
+
+export type DistributionBatch = z.infer<typeof distributionBatchSchema>;
