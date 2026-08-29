@@ -1,5 +1,6 @@
 import {
   bigint,
+  datetime,
   index,
   json,
   mysqlTable,
@@ -21,8 +22,8 @@ export const alibabaAuthorizations = mysqlTable("alibaba_authorizations", {
   memberId: varchar("member_id", { length: 128 }),
   accessTokenEncrypted: varchar("access_token_encrypted", { length: 2048 }).notNull(),
   refreshTokenEncrypted: varchar("refresh_token_encrypted", { length: 2048 }),
-  expiresAt: timestamp("expires_at"),
-  refreshTokenExpiresAt: timestamp("refresh_token_expires_at"),
+  expiresAt: datetime("expires_at", { mode: "date" }),
+  refreshTokenExpiresAt: datetime("refresh_token_expires_at", { mode: "date" }),
   status: varchar("status", { length: 32 }).notNull().default("ACTIVE"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow().onUpdateNow()
