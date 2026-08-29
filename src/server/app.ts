@@ -60,7 +60,7 @@ export async function buildApp(options: BuildAppOptions) {
     ? TokenCipher.fromBase64(options.config.tokenEncryptionKey)
     : new TokenCipher(randomBytes(32));
   const mysqlRuntime = options.config.mysqlUrl
-    ? createMySqlRuntimeRepositories(options.config.mysqlUrl, tokenCipher)
+    ? await createMySqlRuntimeRepositories(options.config.mysqlUrl, tokenCipher)
     : undefined;
   const authorizations = options.authorizations
     ?? mysqlRuntime?.authorizations

@@ -4,7 +4,7 @@ const configSchema = z.object({
   NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
   PORT: z.coerce.number().int().positive().default(3000),
   WEB_ORIGIN: z.string().default("http://localhost:5173"),
-  ALIBABA_APP_KEY: z.string().default("3432336"),
+  ALIBABA_APP_KEY: z.string().default("3255489"),
   ALIBABA_APP_SECRET: z.string().optional(),
   ALIBABA_CALLBACK_URL: z.url().default("http://localhost:3000/api/auth/1688/callback"),
   ALIBABA_AUTHORIZE_URL: z.url().default("https://auth.1688.com/oauth/authorize"),

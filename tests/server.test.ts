@@ -11,7 +11,7 @@ const testConfig: ServerConfig = {
   nodeEnv: "test",
   port: 3000,
   webOrigin: "http://localhost:5173",
-  alibabaAppKey: "3432336",
+  alibabaAppKey: "3255489",
   alibabaCallbackUrl: "http://localhost:3000/api/auth/1688/callback",
   alibabaAuthorizeUrl: "https://auth.1688.com/oauth/authorize",
   alibabaGatewayUrl: "https://gw.open.1688.com",
@@ -86,7 +86,7 @@ describe("server API", () => {
       new TokenCipher(Buffer.alloc(32, 3))
     );
     const oauthClient = new AlibabaOAuthClient({
-      appKey: "3432336",
+      appKey: "3255489",
       appSecret: "test-secret",
       callbackUrl: testConfig.alibabaCallbackUrl,
       authorizeUrl: testConfig.alibabaAuthorizeUrl,
@@ -104,7 +104,10 @@ describe("server API", () => {
     expect(start.statusCode).toBe(302);
     const authorizeUrl = new URL(start.headers.location!);
     const state = authorizeUrl.searchParams.get("state");
-    expect(authorizeUrl.searchParams.get("_aop_signature")).toMatch(/^[A-F0-9]{40}$/);
+    expect(authorizeUrl.searchParams.get("client_id")).toBe("3255489");
+    expect(authorizeUrl.searchParams.get("site")).toBe("1688");
+    expect(authorizeUrl.searchParams.get("redirect_uri")).toBe(testConfig.alibabaCallbackUrl);
+    expect(authorizeUrl.searchParams.has("_aop_signature")).toBe(false);
 
     const callback = await app.inject({
       method: "GET",

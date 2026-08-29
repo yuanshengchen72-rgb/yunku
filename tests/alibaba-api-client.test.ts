@@ -10,7 +10,7 @@ describe("1688 API client", () => {
     let requestedUrl = "";
     let requestedBody = "";
     const client = new Alibaba1688ApiClient({
-      appKey: "3432336",
+      appKey: "3255489",
       appSecret: "test-secret",
       gatewayUrl: "https://gw.open.1688.com",
       fetchImplementation: (async (url, init) => {
@@ -32,13 +32,13 @@ describe("1688 API client", () => {
     );
 
     expect(requestedUrl).toBe(
-      "https://gw.open.1688.com/openapi/param2/1/com.alibaba.fenxiao/alibaba.fenxiao.productInfo.get/3432336"
+      "https://gw.open.1688.com/openapi/param2/1/com.alibaba.fenxiao/alibaba.fenxiao.productInfo.get/3255489"
     );
     const form = new URLSearchParams(requestedBody);
     expect(form.get("offerId")).toBe("789870588118");
     expect(form.get("access_token")).toBe("access-token");
     expect(form.get("_aop_signature")).toBe(createAlibabaApiSignature(
-      "param2/1/com.alibaba.fenxiao/alibaba.fenxiao.productInfo.get/3432336",
+      "param2/1/com.alibaba.fenxiao/alibaba.fenxiao.productInfo.get/3255489",
       { offerId: "789870588118", access_token: "access-token" },
       "test-secret"
     ));
@@ -47,7 +47,7 @@ describe("1688 API client", () => {
 
   it("normalizes gateway errors without exposing request credentials", async () => {
     const client = new Alibaba1688ApiClient({
-      appKey: "3432336",
+      appKey: "3255489",
       appSecret: "test-secret",
       gatewayUrl: "https://gw.open.1688.com",
       fetchImplementation: (async () => new Response(JSON.stringify({
@@ -65,6 +65,30 @@ describe("1688 API client", () => {
     )).rejects.toMatchObject<Partial<AlibabaApiError>>({
       code: "401",
       message: "access token expired"
+    });
+  });
+
+  it("uses the documented errorMsg field when the API reports a business error", async () => {
+    const client = new Alibaba1688ApiClient({
+      appKey: "3255489",
+      appSecret: "test-secret",
+      gatewayUrl: "https://gw.open.1688.com",
+      fetchImplementation: (async () => new Response(JSON.stringify({
+        success: false,
+        errorCode: "500_1",
+        errorMsg: "服务内部错误"
+      }), { status: 200 })) as typeof fetch
+    });
+
+    await expect(client.call(
+      "com.alibaba.fenxiao",
+      "alibaba.fenxiao.productInfo.get",
+      "1",
+      "access-token",
+      { offerId: "789870588118" }
+    )).rejects.toMatchObject<Partial<AlibabaApiError>>({
+      code: "500_1",
+      message: "服务内部错误"
     });
   });
 });

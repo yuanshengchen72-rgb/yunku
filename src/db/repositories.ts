@@ -1,6 +1,8 @@
 import mysql, { type Pool } from "mysql2/promise";
 import { drizzle, type MySql2Database } from "drizzle-orm/mysql2";
+import { migrate } from "drizzle-orm/mysql2/migrator";
 import { and, eq } from "drizzle-orm";
+import path from "node:path";
 import type {
   AlibabaAuthorization,
   AlibabaAuthorizationRepository
@@ -18,12 +20,19 @@ export interface MySqlRuntimeRepositories {
   offers: OfferSnapshotRepository;
 }
 
-export function createMySqlRuntimeRepositories(
+export async function createMySqlRuntimeRepositories(
   mysqlUrl: string,
-  cipher: TokenCipher
-): MySqlRuntimeRepositories {
+  cipher: TokenCipher,
+  migrationsFolder = path.resolve(process.cwd(), "drizzle")
+): Promise<MySqlRuntimeRepositories> {
   const pool = mysql.createPool(mysqlUrl);
   const database = drizzle(pool);
+  try {
+    await migrate(database, { migrationsFolder });
+  } catch (error) {
+    await pool.end();
+    throw error;
+  }
   return {
     pool,
     authorizations: new MySqlAlibabaAuthorizationRepository(database, cipher),

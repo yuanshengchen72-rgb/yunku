@@ -25,13 +25,15 @@ SAE固定使用本次构建生成的 `sha-*` 标签，不使用 `latest`。首�
 
 ## 3. 数据库
 
-在部署前通过安全网络执行：
+生产容器启动时会自动执行镜像内的已提交 Drizzle 迁移。数据库账号需具备目标库的建表、变更和读写权限，但不要使用 RDS 管理员账号作为应用长期凭据。
+
+如需在可访问 RDS 的安全网络中提前手动执行：
 
 ```powershell
 npm run db:migrate
 ```
 
-数据库账号首版只需目标库的建表和读写权限，不要使用RDS管理员账号作为应用长期凭据。
+自动迁移失败会使新实例启动失败，从而保留上一可用版本；不要通过删除 RDS 或清空表来处理迁移错误。
 
 ## 4. SAE环境变量
 
@@ -40,7 +42,7 @@ npm run db:migrate
 ```text
 NODE_ENV=production
 PORT=3000
-ALIBABA_APP_KEY=3432336
+ALIBABA_APP_KEY=3255489
 ALIBABA_APP_SECRET=<仅引用SAE保密字典中的同名键>
 ALIBABA_CALLBACK_URL=https://你的测试域名/api/auth/1688/callback
 ALIBABA_AUTHORIZE_URL=https://auth.1688.com/oauth/authorize
@@ -63,7 +65,7 @@ WEB_ORIGIN=https://你的测试域名
 
 ## 6. 1688开放平台配置
 
-当前应用为“电潮分销”，AppKey `3432336`。
+当前应用为“电潮分销”，AppKey `3255489`（已在开放平台应用详情与已购解决方案页面核对）。
 
 - 授权回调地址：必须与 `ALIBABA_CALLBACK_URL` 完全一致。
 - 日常使用入口：填写测试环境首页 `https://你的测试域名/`；若平台要求托管授权回调入口，则使用 `/api/auth/1688/callback`。

@@ -5,13 +5,13 @@
 ## 已完成
 
 - React + Fastify + TypeScript 单仓库工程。
-- AppKey `3432336` 的1688 OAuth授权开始页与回调。
+- 官方开放平台应用“电潮分销”（AppKey `3255489`）的1688 OAuth授权开始页与回调。
 - 授权码换取 `access_token/refresh_token`、过期前自动刷新。
 - URL Path + 排序参数的 HMAC-SHA1 签名。
 - `alibaba.fenxiao.productInfo.get` 真实连接器及内部商品模型转换。
 - AES-256-GCM令牌加密；配置MySQL后持久化租户、令牌和商品快照。
 - 每次最多20条1688商品链接或 Offer ID 的批量导入。
-- 模拟连接器、13项自动化测试和首份Drizzle迁移。
+- 模拟连接器、20项自动化测试和首份Drizzle迁移。
 
 真实接口代码已经就绪，但尚未使用用户的 AppSecret 和授权账号完成第一次线上调用。
 
@@ -26,7 +26,7 @@
 
 ## 真实1688联调
 
-1. 准备MySQL数据库，设置 `MYSQL_URL`，执行 `npm run db:migrate`。
+1. 准备MySQL数据库并设置 `MYSQL_URL`；应用启动时会自动执行镜像内的已提交迁移。
 2. 生成32字节Base64随机密钥，设置为 `TOKEN_ENCRYPTION_KEY`。
 3. 在 SAE 保密字典（K8s Secret）中保存 `ALIBABA_APP_SECRET`，部署时引用该键作为同名环境变量；不要将值写入普通环境变量、镜像、仓库、日志或聊天。
 4. 将 `ALIBABA_CALLBACK_URL` 改成可公网HTTPS访问的完整地址，例如：
@@ -53,7 +53,7 @@ node -e "console.log(require('node:crypto').randomBytes(32).toString('base64'))"
 npm run db:generate
 ```
 
-执行迁移：
+本地手动执行迁移（可选；生产容器启动时会自动执行）：
 
 ```powershell
 npm run db:migrate

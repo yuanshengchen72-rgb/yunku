@@ -35,10 +35,16 @@ function findProductRecord(payload: unknown): UnknownRecord {
   throw new Error("1688 商品详情响应中没有找到商品主体");
 }
 
-function validUrl(value: unknown): string | undefined {
+function imageUrl(value: unknown): string | undefined {
   if (typeof value !== "string") return undefined;
+  const trimmed = value.trim();
+  if (!trimmed) return undefined;
   try {
-    return new URL(value).toString();
+    if (trimmed.startsWith("//")) return new URL(`https:${trimmed}`).toString();
+    if (/^\/?img\//i.test(trimmed)) {
+      return new URL(trimmed.replace(/^\//, ""), "https://cbu01.alicdn.com/").toString();
+    }
+    return new URL(trimmed).toString();
   } catch {
     return undefined;
   }
@@ -47,7 +53,7 @@ function validUrl(value: unknown): string | undefined {
 function imageUrls(product: UnknownRecord): string[] {
   const collected: string[] = [];
   const add = (value: unknown) => {
-    const url = validUrl(value);
+    const url = imageUrl(value);
     if (url && !collected.includes(url)) collected.push(url);
   };
   const addList = (value: unknown) => {
@@ -62,8 +68,10 @@ function imageUrls(product: UnknownRecord): string[] {
   };
 
   addList(firstValue(product, ["imageUrls", "images", "imageList", "mainImages"]));
-  const image = asRecord(product.image);
-  if (image) addList(firstValue(image, ["images", "imageUrls", "imageList"]));
+  for (const key of ["image", "productImage"]) {
+    const image = asRecord(product[key]);
+    if (image) addList(firstValue(image, ["images", "imageUrls", "imageList"]));
+  }
   add(firstValue(product, ["mainImage", "mainImageUrl", "imageUrl"]));
   return collected;
 }
@@ -85,8 +93,10 @@ function skuAttributes(sku: UnknownRecord): Record<string, string> {
     for (const item of attributes) {
       const attribute = asRecord(item);
       if (!attribute) continue;
-      const name = firstValue(attribute, ["attributeDisplayName", "attributeName", "name"]);
-      const value = firstValue(attribute, ["attributeValue", "value", "valueName"]);
+      const name = firstValue(attribute, ["attributeDisplayName", "name"])
+        ?? (attribute.attributeValue !== undefined ? attribute.attributeName : undefined);
+      const value = firstValue(attribute, ["attributeValue", "value", "valueName"])
+        ?? (attribute.attributeDisplayName !== undefined ? attribute.attributeName : undefined);
       if (name !== undefined && value !== undefined) result[String(name)] = String(value);
     }
   } else {
@@ -100,13 +110,38 @@ function skuAttributes(sku: UnknownRecord): Record<string, string> {
   return result;
 }
 
+function skuPrice(sku: UnknownRecord): unknown {
+  return firstValue(sku, [
+    "consignPrice",
+    "jxhyPrice",
+    "channelPrice",
+    "price",
+    "retailPrice",
+    "salePrice",
+    "unitPrice"
+  ]);
+}
+
 function skus(product: UnknownRecord, offerId: string): OfferSnapshot["skus"] {
-  const source = firstValue(product, ["skuInfos", "skuList", "skus", "skuInfoList"]);
+  const source = firstValue(product, [
+    "skuInfos",
+    "productSkuInfos",
+    "skuList",
+    "skus",
+    "skuInfoList"
+  ]);
   if (!Array.isArray(source) || source.length === 0) {
     return [{
       sourceSkuId: offerId,
       attributes: {},
-      priceCents: moneyToCents(firstValue(product, ["price", "salePrice", "unitPrice"])),
+      priceCents: moneyToCents(firstValue(product, [
+        "consignPrice",
+        "jxhyPrice",
+        "referencePrice",
+        "price",
+        "salePrice",
+        "unitPrice"
+      ])),
       availableStock: nonnegativeInteger(firstValue(product, ["amountOnSale", "stock", "availableStock"]))
     }];
   }
@@ -115,7 +150,7 @@ function skus(product: UnknownRecord, offerId: string): OfferSnapshot["skus"] {
     return {
       sourceSkuId: String(firstValue(sku, ["specId", "skuId", "skuID", "id"]) ?? `${offerId}-${index + 1}`),
       attributes: skuAttributes(sku),
-      priceCents: moneyToCents(firstValue(sku, ["price", "salePrice", "unitPrice"])),
+      priceCents: moneyToCents(skuPrice(sku)),
       availableStock: nonnegativeInteger(firstValue(sku, ["amountOnSale", "canBookCount", "stock", "availableStock"]))
     };
   });

@@ -160,7 +160,7 @@ QUEUED
 
 ### 7.1 已确定
 
-- 1688 开放平台应用：`电潮分销`，AppKey `3432336`。
+- 1688 开放平台应用：`电潮分销`，AppKey `3255489`。
 - 聚石塔云应用：`dianchao-distribution`。
 - 测试环境：`test`。
 - 地域：`cn-zhangjiakou`。
@@ -232,7 +232,7 @@ QUEUED
 - V1 的核心导入接口为 `alibaba.fenxiao.productInfo.get`：用户输入商品链接或 Offer ID，解析出 `offerId` 后，用该租户的 1688 `access_token` 获取分销商品详情。
 - 关键词搜索优先验证 `product.keywords.search`；搜索结果选中后仍回到 `productInfo.get` 获取完整详情。
 - `alibaba.category.get` 和 `alibaba.category.attribute.get` 只提供 1688 类目与属性，不能直接当作微信类目与属性。
-- 方案 8.5 页面列出的接口不等于当前 AppKey 已获权。此前在错误 AppKey `3255489` 上的测试记录不能沿用；真实 AppKey `3432336` 需要重新核验 `alibaba.fenxiao.productInfo.get` 等核心权限。
+- 开放平台的应用详情与已购解决方案页面均确认当前 AppKey 为 `3255489`。方案 8.5 页面列出的接口仍需使用该应用的授权 Token 实际调用，才能确认 `alibaba.fenxiao.productInfo.get` 等核心权限与返回字段。
 - “可选”证明接口已经分配到应用，但仍需用测试账号授权后的 Token 成功调用，才能确认授权、参数、返回字段和聚石塔网络全部正常。
 - `productInfo.get` 调用失败会阻塞 V1；图搜、AI 选品不可用不阻塞按链接铺货。
 
@@ -260,7 +260,7 @@ QUEUED
 
 ## 12. 开工前必须完成的实测
 
-1. 已完成：确认真实 AppKey 为 `3432336`；错误配置值 `3255489` 不再用于开发或部署。
+1. 已完成：在开放平台应用详情和已购解决方案页面确认真实 AppKey 为 `3255489`，并统一代码及部署配置。
 2. 待完成：用测试账号授权后的 Token 验证 `alibaba.fenxiao.productInfo.get` 能返回一个真实测试商品及 SKU。
 3. 在张家口测试环境配置 NAT 固定出口，验证 SAE 可访问 `api.weixin.qq.com`。
 4. 选择一个无需特殊品牌/资质、SKU 不超过 10 个的微信小店普通类目测试商品。

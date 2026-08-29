@@ -62,7 +62,11 @@ export class Alibaba1688ApiClient {
 
     const record = asRecord(payload);
     const errorCode = record?.error_code ?? record?.errorCode;
-    const errorMessage = record?.error_message ?? record?.errorMessage ?? record?.message;
+    const errorMessage = record?.error_message
+      ?? record?.errorMessage
+      ?? record?.errorMsg
+      ?? record?.error_description
+      ?? record?.message;
     if (!response.ok || record?.success === false || record?.error !== undefined || errorCode) {
       throw new AlibabaApiError(
         typeof errorMessage === "string" ? errorMessage : `1688 API 调用失败（HTTP ${response.status}）`,

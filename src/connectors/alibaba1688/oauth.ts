@@ -1,6 +1,5 @@
 import { z } from "zod";
 import {
-  createAlibabaParameterSignature,
   toFormData,
   type AlibabaParameters
 } from "./signature.js";
@@ -69,18 +68,12 @@ export class AlibabaOAuthClient {
   buildAuthorizeUrl(state: string): string {
     const parameters: AlibabaParameters = {
       client_id: this.options.appKey,
-      response_type: "code",
       redirect_uri: this.options.callbackUrl,
       site: "1688",
       state
     };
     const url = new URL(this.options.authorizeUrl);
-    const query = toFormData(parameters);
-    query.set(
-      "_aop_signature",
-      createAlibabaParameterSignature(parameters, this.options.appSecret)
-    );
-    url.search = query.toString();
+    url.search = toFormData(parameters).toString();
     return url.toString();
   }
 

@@ -22,10 +22,31 @@ describe("1688 authorization", () => {
     });
   });
 
+  it("builds the documented web OAuth URL without exposing a secret-derived signature", () => {
+    const oauth = new AlibabaOAuthClient({
+      appKey: "3255489",
+      appSecret: "test-secret",
+      callbackUrl: "https://example.com/api/auth/1688/callback",
+      authorizeUrl: "https://auth.1688.com/oauth/authorize",
+      gatewayUrl: "https://gw.open.1688.com"
+    });
+
+    const authorizeUrl = new URL(oauth.buildAuthorizeUrl("one-time-state"));
+    expect(authorizeUrl.origin + authorizeUrl.pathname).toBe("https://auth.1688.com/oauth/authorize");
+    expect(Object.fromEntries(authorizeUrl.searchParams)).toEqual({
+      client_id: "3255489",
+      redirect_uri: "https://example.com/api/auth/1688/callback",
+      site: "1688",
+      state: "one-time-state"
+    });
+    expect(authorizeUrl.search).not.toContain("test-secret");
+    expect(authorizeUrl.searchParams.has("_aop_signature")).toBe(false);
+  });
+
   it("exchanges a code and normalizes the 1688 account", async () => {
     let requestedBody = "";
     const oauth = new AlibabaOAuthClient({
-      appKey: "3432336",
+      appKey: "3255489",
       appSecret: "test-secret",
       callbackUrl: "https://example.com/api/auth/1688/callback",
       authorizeUrl: "https://auth.1688.com/oauth/authorize",
