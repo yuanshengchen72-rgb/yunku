@@ -5,6 +5,7 @@ COPY package.json package-lock.json ./
 RUN npm ci
 COPY tsconfig.base.json tsconfig.server.json tsconfig.web.json vite.config.ts ./
 COPY src ./src
+COPY assets ./assets
 RUN npm run build
 
 FROM node:22-alpine AS runtime
