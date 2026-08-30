@@ -34,5 +34,5 @@ jobs:
         with:
           name: dianchao-image-${{ inputs.image_tag }}
           path: /tmp/dianchao-image.tar
-          compression-level: 0
+          compression-level: 6
           retention-days: 1
