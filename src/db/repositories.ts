@@ -2,7 +2,7 @@ import mysql, { type Pool } from "mysql2/promise";
 import { drizzle, type MySql2Database } from "drizzle-orm/mysql2";
 import { migrate } from "drizzle-orm/mysql2/migrator";
 import { createHash, randomUUID } from "node:crypto";
-import { and, count, desc, eq } from "drizzle-orm";
+import { and, asc, count, desc, eq, inArray } from "drizzle-orm";
 import path from "node:path";
 import type {
   AlibabaAuthorization,
@@ -21,6 +21,7 @@ import {
   distributionJobSchema,
   offerSnapshotSchema,
   type DistributionBatch,
+  type DistributionJob,
   type DistributionStrategy,
   type OfferSnapshot,
   type WechatStore
@@ -375,5 +376,48 @@ class MySqlDistributionRepository implements DistributionRepository {
         updatedAt: job.updatedAt.toISOString()
       }))
     });
+  }
+
+  async updateExecution(tenantId: string, batchId: string, input: {
+    status: DistributionBatch["status"];
+    jobs: Array<{
+      id: string;
+      status: DistributionJob["status"];
+      statusMessage?: string;
+    }>;
+  }): Promise<DistributionBatch | undefined> {
+    const now = new Date();
+    await this.database.transaction(async (transaction) => {
+      for (const job of input.jobs) {
+        await transaction.update(distributionJobs).set({
+          status: job.status,
+          statusMessage: job.statusMessage ?? null,
+          updatedAt: now
+        }).where(and(
+          eq(distributionJobs.tenantId, tenantId),
+          eq(distributionJobs.batchId, batchId),
+          eq(distributionJobs.id, job.id)
+        ));
+      }
+      await transaction.update(distributionBatches).set({
+        status: input.status,
+        updatedAt: now
+      }).where(and(
+        eq(distributionBatches.tenantId, tenantId),
+        eq(distributionBatches.id, batchId)
+      ));
+    });
+    return this.findBatch(tenantId, batchId);
+  }
+
+  async listPending(limit = 20): Promise<Array<{ tenantId: string; batchId: string }>> {
+    const rows = await this.database.select({
+      tenantId: distributionBatches.tenantId,
+      batchId: distributionBatches.id
+    }).from(distributionBatches)
+      .where(inArray(distributionBatches.status, ["QUEUED", "RUNNING"]))
+      .orderBy(asc(distributionBatches.updatedAt))
+      .limit(limit);
+    return rows;
   }
 }

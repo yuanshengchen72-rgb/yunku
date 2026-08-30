@@ -13,6 +13,7 @@ import {
 } from "../shared/contracts.js";
 import { InvalidOfferReferenceError } from "../domain/offer-id.js";
 import { ImportOfferService } from "../domain/import-offer.js";
+import { DistributionExecutor } from "../domain/distribution-executor.js";
 import {
   InMemoryOfferSnapshotRepository,
   InMemoryDistributionRepository,
@@ -41,7 +42,8 @@ import { createMySqlRuntimeRepositories } from "../db/repositories.js";
 import { LoginTicketStore } from "./login-ticket-store.js";
 import {
   WechatShopConnector,
-  type WechatCredentialValidation
+  type WechatCredentialValidation,
+  type WechatProductPublication
 } from "../connectors/wechat-shop/connector.js";
 
 interface BuildAppOptions {
@@ -52,7 +54,7 @@ interface BuildAppOptions {
   offers?: OfferSnapshotRepository;
   stores?: WechatStoreRepository;
   distributions?: DistributionRepository;
-  wechatConnector?: Pick<WechatShopConnector, "validateCredentials">;
+  wechatConnector?: Pick<WechatShopConnector, "validateCredentials" | "publishProduct">;
   oauthClient?: AlibabaOAuthClient;
   oauthStates?: OAuthStateStore;
   loginTickets?: LoginTicketStore;
@@ -92,7 +94,16 @@ export async function buildApp(options: BuildAppOptions) {
     ?? new InMemoryDistributionRepository();
   const wechatConnector = options.wechatConnector
     ?? (options.config.connectorMode === "mock"
-      ? { validateCredentials: async (): Promise<WechatCredentialValidation> => ({ status: "NORMAL" }) }
+      ? {
+          validateCredentials: async (): Promise<WechatCredentialValidation> => ({ status: "NORMAL" }),
+          publishProduct: async (_appId: string, _appSecret: string, offer: {
+            offerId: string;
+          }): Promise<WechatProductPublication> => ({
+            productId: `mock-${offer.offerId}`,
+            status: "SUBMITTED",
+            statusMessage: `商品已提交微信小店（商品ID：mock-${offer.offerId}）`
+          })
+        }
       : new WechatShopConnector());
   const oauthClient = options.oauthClient ?? createOAuthClient(options.config);
   const connector =
@@ -101,6 +112,30 @@ export async function buildApp(options: BuildAppOptions) {
       ? new MockAlibaba1688Connector()
       : createRealConnector(options.config, oauthClient, authorizations));
   const importOffer = new ImportOfferService(connector, repository);
+  const distributionExecutor = new DistributionExecutor(
+    distributions,
+    stores,
+    repository,
+    wechatConnector
+  );
+
+  let pendingTimer: NodeJS.Timeout | undefined;
+  if (options.config.nodeEnv !== "test") {
+    app.addHook("onReady", async () => {
+      void distributionExecutor.drainPending().catch((error) => {
+        app.log.error({ err: error }, "pending distribution execution failed");
+      });
+      pendingTimer = setInterval(() => {
+        void distributionExecutor.drainPending().catch((error) => {
+          app.log.error({ err: error }, "pending distribution execution failed");
+        });
+      }, 15_000);
+      pendingTimer.unref();
+    });
+    app.addHook("onClose", async () => {
+      if (pendingTimer) clearInterval(pendingTimer);
+    });
+  }
 
   if (mysqlRuntime) {
     app.addHook("onClose", async () => mysqlRuntime.pool.end());
@@ -318,12 +353,20 @@ export async function buildApp(options: BuildAppOptions) {
         }
         selectedOffers.push(offer);
       }
-      const batch = await distributions.createBatch(session.tenantId, {
+      const createdBatch = await distributions.createBatch(session.tenantId, {
         offerIds: body.offerIds,
         stores: selectedStores.filter((store) => store !== undefined),
         offers: selectedOffers,
         strategy: body.strategy
       });
+      const batch = options.config.nodeEnv === "test"
+        ? await distributionExecutor.runBatch(session.tenantId, createdBatch.id) ?? createdBatch
+        : createdBatch;
+      if (options.config.nodeEnv !== "test") {
+        void distributionExecutor.runBatch(session.tenantId, createdBatch.id).catch((error) => {
+          request.log.error({ err: error }, "distribution batch execution failed");
+        });
+      }
       return reply.code(201).send({ data: batch });
     } catch (error) {
       if (error instanceof z.ZodError) {

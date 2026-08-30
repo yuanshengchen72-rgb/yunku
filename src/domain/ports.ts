@@ -1,5 +1,6 @@
 import type {
   DistributionBatch,
+  DistributionJob,
   DistributionStrategy,
   OfferSnapshot,
   WechatStore
@@ -114,6 +115,15 @@ export interface DistributionRepository {
   }): Promise<DistributionBatch>;
   listBatches(tenantId: string): Promise<DistributionBatch[]>;
   findBatch(tenantId: string, batchId: string): Promise<DistributionBatch | undefined>;
+  updateExecution(tenantId: string, batchId: string, input: {
+    status: DistributionBatch["status"];
+    jobs: Array<{
+      id: string;
+      status: DistributionJob["status"];
+      statusMessage?: string;
+    }>;
+  }): Promise<DistributionBatch | undefined>;
+  listPending(limit?: number): Promise<Array<{ tenantId: string; batchId: string }>>;
 }
 
 export class InMemoryDistributionRepository implements DistributionRepository {
@@ -163,6 +173,46 @@ export class InMemoryDistributionRepository implements DistributionRepository {
 
   async findBatch(tenantId: string, batchId: string): Promise<DistributionBatch | undefined> {
     return this.records.get(tenantId)?.find((batch) => batch.id === batchId);
+  }
+
+  async updateExecution(tenantId: string, batchId: string, input: {
+    status: DistributionBatch["status"];
+    jobs: Array<{
+      id: string;
+      status: DistributionJob["status"];
+      statusMessage?: string;
+    }>;
+  }): Promise<DistributionBatch | undefined> {
+    const batches = this.records.get(tenantId);
+    const batch = batches?.find((candidate) => candidate.id === batchId);
+    if (!batch) return undefined;
+    const now = new Date().toISOString();
+    const updates = new Map(input.jobs.map((job) => [job.id, job]));
+    batch.jobs = batch.jobs?.map((job) => {
+      const update = updates.get(job.id);
+      return update ? {
+        ...job,
+        status: update.status,
+        ...(update.statusMessage ? { statusMessage: update.statusMessage } : {}),
+        updatedAt: now
+      } : job;
+    });
+    batch.status = input.status;
+    batch.updatedAt = now;
+    return batch;
+  }
+
+  async listPending(limit = 20): Promise<Array<{ tenantId: string; batchId: string }>> {
+    const pending: Array<{ tenantId: string; batchId: string }> = [];
+    for (const [tenantId, batches] of this.records) {
+      for (const batch of batches) {
+        if (batch.status === "QUEUED" || batch.status === "RUNNING") {
+          pending.push({ tenantId, batchId: batch.id });
+          if (pending.length >= limit) return pending;
+        }
+      }
+    }
+    return pending;
   }
 }
 

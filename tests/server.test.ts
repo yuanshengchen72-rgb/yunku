@@ -186,6 +186,49 @@ describe("server API", () => {
     await app.close();
   });
 
+  it("executes a newly created distribution task", async () => {
+    const app = await buildApp({ config: testConfig });
+    const sessionResponse = await app.inject({
+      method: "POST",
+      url: "/api/dev/session",
+      payload: { alibabaUserId: "buyer-execution" }
+    });
+    const { token } = sessionResponse.json<{ token: string }>();
+    const headers = { authorization: `Bearer ${token}` };
+
+    await app.inject({
+      method: "POST",
+      url: "/api/1688/offers/import",
+      headers,
+      payload: { offerUrlOrId: "789870588118" }
+    });
+    const storeResponse = await app.inject({
+      method: "POST",
+      url: "/api/stores/wechat",
+      headers,
+      payload: {
+        name: "执行测试店",
+        appId: "wx1234567890",
+        appSecret: "secret-value"
+      }
+    });
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/distribution/batches",
+      headers,
+      payload: {
+        offerIds: ["789870588118"],
+        storeIds: [storeResponse.json().data.id],
+        strategy: "ORDERED_AVERAGED"
+      }
+    });
+
+    expect(response.statusCode).toBe(201);
+    expect(response.json().data.jobs).toHaveLength(1);
+    expect(response.json().data.jobs[0].status).toBe("SUBMITTED");
+    await app.close();
+  });
+
   it("completes the 1688 OAuth callback and creates a cookie session", async () => {
     const authorizations = new EncryptedInMemoryAlibabaAuthorizationRepository(
       new TokenCipher(Buffer.alloc(32, 3))
