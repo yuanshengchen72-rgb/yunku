@@ -37,8 +37,8 @@ describe("WechatShopConnector product publishing", () => {
           errmsg: "ok",
           categories: [{
             cats: [
-              { cat_info: { cat_id: "100", cat_name: "服饰" }, has_permission: true },
-              { cat_info: { cat_id: "101", cat_name: "男装" }, has_permission: true },
+              { cat_info: { cat_id: "100", cat_name: "服饰" }, has_permission: false },
+              { cat_info: { cat_id: "101", cat_name: "男装" }, has_permission: false },
               { cat_info: { cat_id: "102", cat_name: "T恤" }, has_permission: true }
             ]
           }]

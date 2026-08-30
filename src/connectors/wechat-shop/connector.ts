@@ -80,7 +80,9 @@ export class WechatShopConnector {
       head_imgs: headImages
     });
     const matchedCategory = classification.categories?.find((candidate) =>
-      candidate.cats?.length && candidate.cats.every((level) => level.has_permission !== false && level.cat_info?.cat_id)
+      candidate.cats?.length
+      && candidate.cats.every((level) => level.cat_info?.cat_id)
+      && candidate.cats.at(-1)?.has_permission === true
     );
     if (!matchedCategory?.cats?.length) {
       throw new Error("微信小店没有匹配类目的经营权限，请先在店铺后台申请对应类目");
