@@ -1,5 +1,9 @@
-import type { Alibaba1688Connector, GetProductInfoInput } from "./connector.js";
-import type { OfferSnapshot } from "../../shared/contracts.js";
+import type {
+  Alibaba1688Connector,
+  GetProductInfoInput,
+  SearchOffersInput
+} from "./connector.js";
+import type { OfferSearchResult, OfferSnapshot } from "../../shared/contracts.js";
 
 export class MockAlibaba1688Connector implements Alibaba1688Connector {
   async getProductInfo(input: GetProductInfoInput): Promise<OfferSnapshot> {
@@ -28,6 +32,29 @@ export class MockAlibaba1688Connector implements Alibaba1688Connector {
         }
       ],
       importedAt: new Date().toISOString()
+    };
+  }
+
+  async searchOffers(input: SearchOffersInput): Promise<OfferSearchResult> {
+    const offerId = "789870588118";
+    const title = input.mode === "keyword"
+      ? `1688 模拟搜索结果：${input.query}`
+      : "1688 模拟图片搜索结果";
+    return {
+      items: [{
+        offerId,
+        title,
+        imageUrl: "https://images.unsplash.com/photo-1523275335684-37898b6baf30",
+        detailUrl: `https://detail.1688.com/offer/${offerId}.html`,
+        priceCents: 2990,
+        soldCount: 100,
+        supplierName: "本地开发模拟供应商",
+        tags: ["本地模拟数据"],
+        source: input.mode
+      }],
+      page: input.mode === "keyword" ? input.page : 1,
+      pageSize: input.mode === "keyword" ? input.pageSize : 1,
+      total: 1
     };
   }
 }

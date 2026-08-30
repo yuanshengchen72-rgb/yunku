@@ -9,7 +9,8 @@ import {
   bindWechatStoreRequestSchema,
   createDistributionBatchRequestSchema,
   importOfferRequestSchema,
-  importOffersRequestSchema
+  importOffersRequestSchema,
+  offerSearchRequestSchema
 } from "../shared/contracts.js";
 import { InvalidOfferReferenceError } from "../domain/offer-id.js";
 import { ImportOfferService } from "../domain/import-offer.js";
@@ -27,7 +28,7 @@ import {
   AlibabaAuthorizationRequiredError,
   RealAlibaba1688Connector
 } from "../connectors/alibaba1688/real-connector.js";
-import { Alibaba1688ApiClient } from "../connectors/alibaba1688/api-client.js";
+import { Alibaba1688ApiClient, AlibabaApiError } from "../connectors/alibaba1688/api-client.js";
 import {
   EncryptedInMemoryAlibabaAuthorizationRepository,
   TokenCipher,
@@ -272,6 +273,36 @@ export async function buildApp(options: BuildAppOptions) {
     if (!session) return reply.code(401).send({ code: "UNAUTHORIZED" });
     const query = z.object({ q: z.string().trim().max(120).optional() }).parse(request.query);
     return { data: await repository.list(session.tenantId, query.q) };
+  });
+
+  app.post("/api/1688/offers/search", async (request, reply) => {
+    const session = requireSession(request);
+    if (!session) return reply.code(401).send({ code: "UNAUTHORIZED" });
+    try {
+      const body = offerSearchRequestSchema.parse(request.body);
+      const data = await connector.searchOffers({ tenantId: session.tenantId, ...body });
+      return { data };
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return reply.code(400).send({
+          code: "INVALID_SEARCH_REQUEST",
+          message: error.issues[0]?.message ?? "搜货参数不正确"
+        });
+      }
+      if (error instanceof AlibabaAuthorizationRequiredError) {
+        return reply.code(409).send({ code: "ALIBABA_AUTH_REQUIRED", message: error.message });
+      }
+      if (error instanceof AlibabaApiError) {
+        request.log.warn({ err: error, upstreamCode: error.code }, "1688 offer search rejected");
+        return reply.code(502).send({
+          code: "ALIBABA_SEARCH_REJECTED",
+          upstreamCode: error.code,
+          message: error.message
+        });
+      }
+      request.log.error({ err: error }, "1688 offer search failed");
+      return reply.code(502).send({ code: "UPSTREAM_ERROR", message: "1688搜货失败，请稍后重试" });
+    }
   });
 
   app.get("/api/stores", async (request, reply) => {

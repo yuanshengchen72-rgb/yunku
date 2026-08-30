@@ -2,6 +2,8 @@ import type {
   BindWechatStoreRequest,
   CreateDistributionBatchRequest,
   DistributionBatch,
+  OfferSearchRequest,
+  OfferSearchResult,
   OfferSnapshot,
   WechatStore
 } from "../shared/contracts";
@@ -115,6 +117,13 @@ export function listOffers(query = ""): Promise<OfferSnapshot[]> {
   const params = new URLSearchParams();
   if (query.trim()) params.set("q", query.trim());
   return apiRequest(`/api/1688/offers${params.size ? `?${params}` : ""}`);
+}
+
+export function searchOffers(input: OfferSearchRequest): Promise<OfferSearchResult> {
+  return apiRequest("/api/1688/offers/search", {
+    method: "POST",
+    body: JSON.stringify(input)
+  });
 }
 
 export function listStores(): Promise<WechatStore[]> {

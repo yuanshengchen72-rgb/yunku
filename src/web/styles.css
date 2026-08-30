@@ -150,14 +150,18 @@ button, input, textarea { font-family: inherit; }
 .insight-card h3 { margin: 0 0 12px; font-size: 18px; }
 .insight-card > div { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
 .insight-card b { display: block; width: 100%; font-size: 14px; }
-.rank-chip { flex: 1; min-width: 66px; padding: 12px 8px; color: white; border-radius: 4px; font-weight: 600; text-decoration: none; }
+.rank-chip { flex: 1; min-width: 66px; padding: 12px 8px; border: 0; color: white; border-radius: 4px; font-weight: 600; text-decoration: none; cursor: pointer; }
 .rank-chip.hot { background: #ff6328; }.rank-chip.trend { background: #5784f4; }.rank-chip.topic { background: #a76beb; }
-.brand-banner { margin-top: 18px; min-height: 72px; padding: 0 20px; display: flex; align-items: center; gap: 34px; border-radius: 8px; color: #7b4d2d; background: linear-gradient(105deg, #fff0df, #fff8ec); text-decoration: none; }
+.brand-banner { width: 100%; margin-top: 18px; min-height: 72px; padding: 0 20px; display: flex; align-items: center; gap: 34px; border: 0; border-radius: 8px; color: #7b4d2d; background: linear-gradient(105deg, #fff0df, #fff8ec); text-align: left; text-decoration: none; cursor: pointer; }
 .brand-banner b { color: #222; font-size: 26px; font-style: italic; }
 .brand-link { margin-left: auto; color: #6f4e37; }
 .source-panel { margin-top: 18px; padding: 18px 20px 28px; border-radius: 10px; }
 .source-panel-title { display: flex; justify-content: space-between; align-items: center; }
 .source-panel-title h3 { margin: 0 !important; }
+.recommend-filter-row { min-height: 52px; display: flex; align-items: center; flex-wrap: wrap; gap: 16px; }
+.recommend-filter-row b { width: 90px; }
+.recommend-filter-row button { padding: 5px 10px; border: 0; border-radius: 4px; background: transparent; cursor: pointer; }
+.recommend-filter-row button:hover, .recommend-filter-row button.active { color: var(--orange); background: #fff1e8; }
 .filter-rows { margin-top: 14px; font-size: 13px; }
 .filter-rows > div { min-height: 40px; display: flex; align-items: center; flex-wrap: wrap; gap: 18px; }
 .filter-rows b { width: 108px; font-size: 14px; }
@@ -187,13 +191,38 @@ button, input, textarea { font-family: inherit; }
 .central-search-row { max-width: 800px; margin: 4px auto 0; display: grid; grid-template-columns: 1fr 76px 96px; }
 .central-search-row .ant-input { height: 48px; border: 2px solid var(--orange); border-radius: 6px 0 0 6px; }
 .central-search-row .ant-btn { height: 48px; border-radius: 0; }
+.central-search-row .ant-btn-primary { border-color: var(--orange); background: var(--orange); box-shadow: none; }
+.central-search-row .ant-btn-primary:hover, .central-search-row .ant-btn-primary:focus-visible { border-color: #e94600 !important; background: #e94600 !important; }
 .central-search-row .ant-btn:last-child { margin-left: 12px; border-radius: 4px; color: var(--orange); background: #fff4ee; border-color: #ffe1d1; }
 .batch-search-panel { max-width: 800px; margin: 8px auto 0; padding: 14px 16px 16px; border-radius: 0 0 8px 8px; background: #fff; box-shadow: 0 10px 24px rgba(24, 35, 50, .16); text-align: left; }
-.batch-search-panel textarea { min-height: 300px !important; resize: vertical; background: #fafafa; }
+.batch-search-panel textarea { min-height: clamp(210px, 32vh, 300px) !important; resize: vertical; background: #fafafa; }
 .batch-search-actions { margin-top: 12px; display: flex; justify-content: flex-end; gap: 10px; }
+.batch-search-actions .ant-btn-primary { border-color: var(--orange); background: var(--orange); box-shadow: none; }
+.batch-search-actions .ant-btn:not(.ant-btn-primary) { color: var(--orange); border-color: #ffb18d; }
+.image-upload-panel { max-width: 800px; min-height: 210px; margin: 10px auto 0; padding: 18px; border: 1px dashed #d7dce5; border-radius: 8px; background: #fafbfc; text-align: left; }
+.image-upload-list { display: flex; flex-wrap: wrap; gap: 12px; }
+.image-upload-item, .image-upload-button { position: relative; width: 92px; height: 92px; overflow: hidden; border: 1px solid #dfe3e8; border-radius: 6px; background: #fff; }
+.image-upload-item img { width: 100%; height: 100%; object-fit: cover; }
+.image-upload-item button { position: absolute; top: 3px; right: 3px; width: 22px; height: 22px; padding: 0; border: 0; border-radius: 50%; color: #fff; background: rgba(0, 0, 0, .58); cursor: pointer; }
+.image-upload-button { display: grid; place-content: center; gap: 5px; color: #596577; text-align: center; cursor: pointer; }
+.image-upload-button input { display: none; }
+.image-upload-panel p { margin: 14px 0 0; color: #8b95a3; font-size: 12px; }
+.image-upload-panel.searched { min-height: 128px; }
+.search-filter-panel { max-width: 1080px; margin: 20px auto 0; padding: 15px 18px; border: 1px solid #e6e9ee; border-radius: 8px; background: #fff; text-align: left; }
+.search-filter-panel > div { min-height: 42px; display: flex; align-items: center; flex-wrap: wrap; gap: 12px; }
+.search-filter-panel b { width: 84px; color: #293241; }
+.search-filter-panel button { padding: 5px 10px; border: 0; border-radius: 4px; background: transparent; cursor: pointer; }
+.search-filter-panel button:hover, .search-filter-panel button.active { color: var(--orange); background: #fff1e8; }
+.search-filter-panel .ant-input { width: 128px; }
+.search-filter-panel .quantity-label { width: auto; margin-left: 16px; }
 .capability-alert { max-width: 800px; margin: 20px auto 0; text-align: left; }
-.search-results { margin-top: 70px; text-align: left; }
+.search-results { margin-top: 34px; text-align: left; }
 .search-result-title { margin-bottom: 16px; display: flex; align-items: center; justify-content: space-between; }
+.search-offer-card .offer-tags { min-height: 24px; margin: 7px 0 2px; overflow: hidden; white-space: nowrap; }
+.search-offer-card .offer-tags .ant-tag { margin-inline-end: 4px; font-size: 10px; }
+.search-offer-card .offer-meta a { color: #8d97a5; }
+.offer-supplier { margin-top: 7px; overflow: hidden; color: #7b8492; font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
+.search-pagination { margin-top: 24px; display: flex; justify-content: center; align-items: center; gap: 14px; }
 .search-distribute { margin-top: 24px; }
 
 .records-page { min-height: 400px; }
