@@ -69,12 +69,12 @@ export async function buildApp(options: BuildAppOptions) {
     validateRealConnectorConfig(options.config);
   }
   const app = Fastify({ logger: options.config.nodeEnv !== "test" });
-  const sessions = options.sessions ?? new SessionStore();
   const oauthStates = options.oauthStates ?? new OAuthStateStore();
   const loginTickets = options.loginTickets ?? new LoginTicketStore();
   const tokenCipher = options.config.tokenEncryptionKey
     ? TokenCipher.fromBase64(options.config.tokenEncryptionKey)
     : new TokenCipher(randomBytes(32));
+  const sessions = options.sessions ?? new SessionStore(tokenCipher);
   const mysqlRuntime = options.config.mysqlUrl
     ? await createMySqlRuntimeRepositories(options.config.mysqlUrl, tokenCipher)
     : undefined;
