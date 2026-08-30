@@ -96,6 +96,17 @@ export const offerSearchItemSchema = z.object({
   priceCents: z.number().int().nonnegative().optional(),
   soldCount: z.number().int().nonnegative().optional(),
   supplierName: z.string().optional(),
+  supplierLocation: z.string().optional(),
+  supplierYears: z.number().int().nonnegative().optional(),
+  monthlySoldCount: z.number().int().nonnegative().optional(),
+  repurchaseRatePercent: z.number().nonnegative().optional(),
+  qualityScore: z.number().nonnegative().optional(),
+  qualityRefundRatePercent: z.number().nonnegative().optional(),
+  shipWithinHours: z.number().int().nonnegative().optional(),
+  distributionCount: z.number().int().nonnegative().optional(),
+  encryptedWaybillChannels: z.array(z.string()).optional(),
+  supportsMaterials: z.boolean().optional(),
+  serviceLabels: z.array(z.string()).optional(),
   tags: z.array(z.string()),
   source: offerSearchItemSourceSchema
 });

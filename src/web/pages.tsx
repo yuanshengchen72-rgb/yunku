@@ -489,7 +489,40 @@ function OfferGrid({ offers, selected, onChange, onDistributeOne }: { offers: Of
 }
 
 function SearchOfferGrid({ offers, selected, onChange, onDistributeOne }: { offers: OfferSearchItem[]; selected: string[]; onChange: (ids: string[]) => void; onDistributeOne: (offerId: string) => void }) {
-  return <div className="offer-grid">{offers.map((offer) => { const checked = selected.includes(offer.offerId); const toggle = () => onChange(checked ? selected.filter((id) => id !== offer.offerId) : [...selected, offer.offerId]); return <article className={`offer-card search-offer-card ${checked ? "selected" : ""}`} key={offer.offerId} role="button" tabIndex={0} onClick={toggle} onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") toggle(); }}><div className="offer-check"><Checkbox checked={checked} /></div><Image preview={false} src={offer.imageUrl ?? logoUrl} fallback={logoUrl} alt={offer.title} referrerPolicy="no-referrer" /><div className="offer-card-body"><h3>{offer.title}</h3><div className="offer-price">{offer.priceCents === undefined ? "价格以详情为准" : `¥${(offer.priceCents / 100).toFixed(2)}`}</div>{offer.tags.length > 0 && <div className="offer-tags">{offer.tags.slice(0, 3).map((tag) => <Tag key={tag}>{tag}</Tag>)}</div>}<div className="offer-meta"><a href={offer.detailUrl} target="_blank" rel="noreferrer" onClick={(event) => event.stopPropagation()}>Offer {offer.offerId}</a><span>{offer.soldCount === undefined ? "销量未返回" : `销量 ${offer.soldCount}`}</span></div>{offer.supplierName && <div className="offer-supplier">{offer.supplierName}</div>}<Button type="primary" block onClick={(event) => { event.stopPropagation(); onDistributeOne(offer.offerId); }}>立即铺货</Button></div></article>; })}</div>;
+  return <div className="offer-grid">{offers.map((offer) => {
+    const checked = selected.includes(offer.offerId);
+    const toggle = () => onChange(checked ? selected.filter((id) => id !== offer.offerId) : [...selected, offer.offerId]);
+    const labels = [...new Set([...(offer.tags ?? []), ...(offer.serviceLabels ?? [])])];
+    const monthlyVolume = offer.monthlySoldCount ?? offer.soldCount;
+    const facts = [
+      monthlyVolume === undefined ? undefined : ["月代发", String(monthlyVolume)],
+      offer.repurchaseRatePercent === undefined ? undefined : ["复购率", `${offer.repurchaseRatePercent}%`],
+      offer.qualityScore === undefined ? undefined : ["质量分", String(offer.qualityScore)],
+      offer.qualityRefundRatePercent === undefined ? undefined : ["品质退款", `${offer.qualityRefundRatePercent}%`]
+    ].filter((value): value is string[] => Boolean(value));
+    return <article className={`offer-card search-offer-card ${checked ? "selected" : ""}`} key={offer.offerId} role="button" tabIndex={0} onClick={toggle} onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") toggle(); }}>
+      <div className="offer-check"><Checkbox checked={checked} /></div>
+      <Image preview={false} src={offer.imageUrl ?? logoUrl} fallback={logoUrl} alt={offer.title} referrerPolicy="no-referrer" />
+      <div className="offer-card-body">
+        <h3>{offer.title}</h3>
+        {(offer.supplierName || offer.supplierLocation || offer.supplierYears !== undefined) && <div className="offer-supplier">
+          {offer.supplierYears !== undefined && <b>{offer.supplierYears}年</b>}
+          {offer.supplierLocation && <span>{offer.supplierLocation}</span>}
+          {offer.supplierName && <span>{offer.supplierName}</span>}
+        </div>}
+        <div className="offer-price-row"><div className="offer-price">{offer.priceCents === undefined ? "价格以详情为准" : `¥${(offer.priceCents / 100).toFixed(2)}`}</div>{offer.shipWithinHours !== undefined && <span>{offer.shipWithinHours}H内发货</span>}</div>
+        {labels.length > 0 && <div className="offer-tags">{labels.slice(0, 4).map((tag) => <Tag key={tag}>{tag}</Tag>)}</div>}
+        {facts.length > 0 && <div className="offer-facts">{facts.map(([label, value]) => <div key={label}><span>{label}</span><b>{value}</b></div>)}</div>}
+        {(offer.encryptedWaybillChannels?.length || offer.distributionCount !== undefined || offer.supportsMaterials !== undefined) && <div className="offer-capabilities">
+          {offer.encryptedWaybillChannels?.length ? <span>密文面单 {offer.encryptedWaybillChannels.join(" · ")}</span> : null}
+          {offer.distributionCount !== undefined && <span>铺货数 {offer.distributionCount}</span>}
+          {offer.supportsMaterials !== undefined && <span>铺货素材 {offer.supportsMaterials ? "已支持" : "未支持"}</span>}
+        </div>}
+        <div className="offer-meta"><a href={offer.detailUrl} target="_blank" rel="noreferrer" onClick={(event) => event.stopPropagation()}>Offer {offer.offerId}</a></div>
+        <Button type="primary" block onClick={(event) => { event.stopPropagation(); onDistributeOne(offer.offerId); }}>立即铺货</Button>
+      </div>
+    </article>;
+  })}</div>;
 }
 
 export function StatusTag({ status }: { status: string }) {

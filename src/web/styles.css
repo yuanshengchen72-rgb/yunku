@@ -219,9 +219,21 @@ button, input, textarea { font-family: inherit; }
 .search-results { margin-top: 34px; text-align: left; }
 .search-result-title { margin-bottom: 16px; display: flex; align-items: center; justify-content: space-between; }
 .search-offer-card .offer-tags { min-height: 24px; margin: 7px 0 2px; overflow: hidden; white-space: nowrap; }
-.search-offer-card .offer-tags .ant-tag { margin-inline-end: 4px; font-size: 10px; }
+.search-offer-card .offer-tags .ant-tag { margin-inline-end: 4px; color: #f45a19; border-color: #ffd7c5; background: #fff6f1; font-size: 10px; }
 .search-offer-card .offer-meta a { color: #8d97a5; }
-.offer-supplier { margin-top: 7px; overflow: hidden; color: #7b8492; font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
+.search-offer-card .offer-card-body { display: flex; min-height: 310px; flex-direction: column; }
+.search-offer-card .offer-meta { margin-top: auto; }
+.offer-supplier { display: flex; gap: 6px; margin-top: 7px; overflow: hidden; color: #7b8492; font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
+.offer-supplier b { flex: none; color: #ff5a16; }
+.offer-supplier span { overflow: hidden; text-overflow: ellipsis; }
+.offer-price-row { display: flex; align-items: baseline; justify-content: space-between; gap: 6px; }
+.offer-price-row .offer-price { margin-bottom: 4px; }
+.offer-price-row > span { color: #ff5a16; font-size: 11px; }
+.offer-facts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 4px 8px; margin: 7px 0; padding: 7px; border-radius: 5px; background: #fafafa; }
+.offer-facts > div { display: flex; justify-content: space-between; gap: 4px; color: #9299a4; font-size: 10px; }
+.offer-facts b { color: #4e5663; font-weight: 600; }
+.offer-capabilities { display: grid; gap: 3px; margin: 3px 0 7px; color: #7e8794; font-size: 10px; }
+.offer-capabilities span:first-child { color: #f45a19; }
 .search-pagination { margin-top: 24px; display: flex; justify-content: center; align-items: center; gap: 14px; }
 .search-distribute { margin-top: 24px; }
 

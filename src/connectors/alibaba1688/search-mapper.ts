@@ -29,6 +29,14 @@ function nonnegativeInteger(value: unknown): number | undefined {
   return Number.isFinite(parsed) && parsed >= 0 ? Math.floor(parsed) : undefined;
 }
 
+function nonnegativeNumber(value: unknown): number | undefined {
+  if (value === undefined || value === null || value === "") return undefined;
+  const match = String(value).replace(/,/g, "").match(/\d+(?:\.\d+)?/);
+  if (!match) return undefined;
+  const parsed = Number(match[0]);
+  return Number.isFinite(parsed) && parsed >= 0 ? parsed : undefined;
+}
+
 function moneyToCents(value: unknown): number | undefined {
   if (value === undefined || value === null) return undefined;
   const match = String(value).replace(/,/g, "").match(/\d+(?:\.\d+)?/);
@@ -151,10 +159,70 @@ function supplierNameOf(item: UnknownRecord): string | undefined {
   return value === undefined || value === null ? undefined : String(value);
 }
 
+function nestedRecord(item: UnknownRecord, keys: string[]): UnknownRecord | undefined {
+  return asRecord(firstValue(item, keys));
+}
+
+function stringList(value: unknown): string[] {
+  const result: string[] = [];
+  const add = (candidate: unknown) => {
+    const label = String(candidate ?? "").trim();
+    if (label && !result.includes(label)) result.push(label);
+  };
+  if (Array.isArray(value)) {
+    for (const entry of value) {
+      const record = asRecord(entry);
+      add(record ? firstValue(record, ["name", "label", "value", "tagName", "channelName"]) : entry);
+    }
+  } else if (typeof value === "string") {
+    for (const entry of value.split(/[,，|]/)) add(entry);
+  }
+  return result;
+}
+
+function supplierLocationOf(item: UnknownRecord): string | undefined {
+  const company = nestedRecord(item, ["companyInfo", "supplierInfo", "sellerInfo"]);
+  const direct = firstValue(item, ["supplierLocation", "companyLocation", "location"]);
+  if (direct !== undefined && direct !== null && String(direct).trim()) return String(direct).trim();
+  if (!company) return undefined;
+  const parts = [
+    firstValue(company, ["province", "provinceName"]),
+    firstValue(company, ["city", "cityName"]),
+    firstValue(company, ["district", "districtName"])
+  ].map((value) => String(value ?? "").trim()).filter(Boolean);
+  return parts.length ? [...new Set(parts)].join(" ") : undefined;
+}
+
+function supplierYearsOf(item: UnknownRecord): number | undefined {
+  const company = nestedRecord(item, ["companyInfo", "supplierInfo", "sellerInfo"]);
+  return nonnegativeInteger(firstValue(item, ["supplierYears", "businessYears", "operatingYears", "tpYear", "shopYears"])
+    ?? (company ? firstValue(company, ["businessYears", "operatingYears", "tpYear", "shopYears", "companyYears"]) : undefined));
+}
+
+function historyValue(item: UnknownRecord, keys: string[]): unknown {
+  const history = nestedRecord(item, ["offerHistoryTradeInfo", "historyTradeInfo", "tradeInfo"]);
+  return firstValue(item, keys) ?? (history ? firstValue(history, keys) : undefined);
+}
+
+function tradeServiceValue(item: UnknownRecord, keys: string[]): unknown {
+  const service = nestedRecord(item, ["offerTradeServiceInfo", "tradeServiceInfo"]);
+  return firstValue(item, keys) ?? (service ? firstValue(service, keys) : undefined);
+}
+
+function qualityValue(item: UnknownRecord, keys: string[]): unknown {
+  const quality = nestedRecord(item, ["qualityEvaluation", "offerQualityEvaluation", "qualityInfo"]);
+  return firstValue(item, keys) ?? (quality ? firstValue(quality, keys) : undefined);
+}
+
+function booleanOf(value: unknown): boolean | undefined {
+  if (typeof value === "boolean") return value;
+  if (value === 1 || value === "1" || value === "true") return true;
+  if (value === 0 || value === "0" || value === "false") return false;
+  return undefined;
+}
+
 function soldCountOf(item: UnknownRecord): number | undefined {
-  const history = asRecord(firstValue(item, ["offerHistoryTradeInfo", "historyTradeInfo", "tradeInfo"]));
-  return nonnegativeInteger(firstValue(item, ["soldCount", "saleQuantity", "tradeQuantity", "monthSold"])
-    ?? (history ? firstValue(history, ["tradeQuantity", "saleQuantity", "monthSold", "quantity"]) : undefined));
+  return nonnegativeInteger(historyValue(item, ["soldCount", "saleQuantity", "tradeQuantity", "monthSold", "quantity"]));
 }
 
 function mapItem(value: unknown, source: OfferSearchItem["source"]): OfferSearchItem | undefined {
@@ -173,6 +241,35 @@ function mapItem(value: unknown, source: OfferSearchItem["source"]): OfferSearch
     "price",
     "salePrice"
   ]));
+  const supplierLocation = supplierLocationOf(item);
+  const supplierYears = supplierYearsOf(item);
+  const monthlySoldCount = nonnegativeInteger(historyValue(item, [
+    "monthlySoldCount", "monthSoldCount", "monthlyTradeQuantity", "monthTradeQuantity", "monthSold"
+  ]));
+  const repurchaseRatePercent = nonnegativeNumber(historyValue(item, [
+    "repurchaseRatePercent", "repurchaseRate", "repeatPurchaseRate"
+  ]));
+  const qualityScore = nonnegativeNumber(qualityValue(item, [
+    "qualityScore", "compositeQualityScore", "score"
+  ]));
+  const qualityRefundRatePercent = nonnegativeNumber(qualityValue(item, [
+    "qualityRefundRatePercent", "qualityRefundRate", "disputeRefundRate", "refundRate"
+  ]));
+  const shipWithinHours = nonnegativeInteger(tradeServiceValue(item, [
+    "shipWithinHours", "deliveryHours", "sendGoodsHours"
+  ]));
+  const distributionCount = nonnegativeInteger(firstValue(item, [
+    "distributionCount", "shopCount", "distributionShopCount", "铺货数"
+  ]));
+  const encryptedWaybillChannels = stringList(firstValue(item, [
+    "encryptLogisticsOrderSupportChannel", "encryptedWaybillChannels", "encryptWaybillChannels"
+  ]));
+  const supportsMaterials = booleanOf(firstValue(item, [
+    "hasAIMaterials", "supportsMaterials", "materialSupported"
+  ]));
+  const serviceLabels = stringList(tradeServiceValue(item, [
+    "serviceLabels", "serviceTags", "tradeServiceTags", "labels", "services"
+  ]));
   return {
     offerId,
     title: title || "未命名商品",
@@ -181,6 +278,17 @@ function mapItem(value: unknown, source: OfferSearchItem["source"]): OfferSearch
     ...(priceCents !== undefined ? { priceCents } : {}),
     ...(soldCountOf(item) !== undefined ? { soldCount: soldCountOf(item) } : {}),
     ...(supplierNameOf(item) ? { supplierName: supplierNameOf(item) } : {}),
+    ...(supplierLocation ? { supplierLocation } : {}),
+    ...(supplierYears !== undefined ? { supplierYears } : {}),
+    ...(monthlySoldCount !== undefined ? { monthlySoldCount } : {}),
+    ...(repurchaseRatePercent !== undefined ? { repurchaseRatePercent } : {}),
+    ...(qualityScore !== undefined ? { qualityScore } : {}),
+    ...(qualityRefundRatePercent !== undefined ? { qualityRefundRatePercent } : {}),
+    ...(shipWithinHours !== undefined ? { shipWithinHours } : {}),
+    ...(distributionCount !== undefined ? { distributionCount } : {}),
+    ...(encryptedWaybillChannels.length ? { encryptedWaybillChannels } : {}),
+    ...(supportsMaterials !== undefined ? { supportsMaterials } : {}),
+    ...(serviceLabels.length ? { serviceLabels } : {}),
     tags: tagsOf(item),
     source
   };

@@ -13,8 +13,28 @@ describe("1688 search response mapper", () => {
         subject: "加肥加长版男生休闲裤",
         offerImage: "//cbu01.alicdn.com/img/ibank/keyword.jpg",
         offerPrice: "49.00",
-        companyInfo: { companyName: "测试供应商" },
-        offerHistoryTradeInfo: { tradeQuantity: 160 },
+        companyInfo: {
+          companyName: "测试供应商",
+          province: "广东省",
+          city: "深圳市",
+          businessYears: 8
+        },
+        offerHistoryTradeInfo: {
+          tradeQuantity: 160,
+          monthSoldCount: 100,
+          repurchaseRate: "32.5%"
+        },
+        offerTradeServiceInfo: {
+          serviceLabels: ["48H晚揽必赔", "7天无理由退货"],
+          shipWithinHours: 48
+        },
+        qualityEvaluation: {
+          qualityScore: 4.8,
+          qualityRefundRate: "0.8%"
+        },
+        encryptLogisticsOrderSupportChannel: ["淘宝", "抖音"],
+        hasAIMaterials: true,
+        distributionCount: 325,
         tags: ["一件代发", "48小时发货"]
       }],
       pageInfo: {
@@ -33,6 +53,17 @@ describe("1688 search response mapper", () => {
       priceCents: 4900,
       soldCount: 160,
       supplierName: "测试供应商",
+      supplierLocation: "广东省 深圳市",
+      supplierYears: 8,
+      monthlySoldCount: 100,
+      repurchaseRatePercent: 32.5,
+      qualityScore: 4.8,
+      qualityRefundRatePercent: 0.8,
+      shipWithinHours: 48,
+      distributionCount: 325,
+      encryptedWaybillChannels: ["淘宝", "抖音"],
+      supportsMaterials: true,
+      serviceLabels: ["48H晚揽必赔", "7天无理由退货"],
       tags: ["一件代发", "48小时发货"],
       source: "keyword"
     });
