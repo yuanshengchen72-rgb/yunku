@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { mapAlibabaProductInfo } from "../src/connectors/alibaba1688/product-mapper.js";
+import {
+  mapAlibabaProductInfo,
+  mapAlibabaProductInfoSearchEnrichment
+} from "../src/connectors/alibaba1688/product-mapper.js";
 
 describe("1688 product mapper", () => {
   it("maps a fenxiao product response to the internal snapshot", () => {
@@ -68,5 +71,39 @@ describe("1688 product mapper", () => {
     }, "789870588120");
 
     expect(result.imageUrls).toEqual(["https://cbu01.alicdn.com/legacy.jpg"]);
+  });
+
+  it("extracts visible search-card fields from product details", () => {
+    const result = mapAlibabaProductInfoSearchEnrichment({
+      productInfo: {
+        productID: 789870588121,
+        subject: "详情补全商品",
+        categoryID: 1042954,
+        productImage: { images: ["//cbu01.alicdn.com/detail.jpg"] },
+        productSkuInfos: [
+          { skuId: "sku-1", consignPrice: 18.8, amountOnSale: 35 },
+          { skuId: "sku-2", consignPrice: 20, amountOnSale: 15 }
+        ],
+        supplierInfo: {
+          companyName: "广州测试服饰有限公司",
+          provinceName: "广东",
+          cityName: "广州"
+        },
+        productShippingInfo: { deliveryTime: "48小时内发货" },
+        serviceList: [{ serviceName: "7天无理由退货" }, { name: "晚揽必赔" }]
+      }
+    }, "789870588121");
+
+    expect(result).toMatchObject({
+      title: "详情补全商品",
+      imageUrl: "https://cbu01.alicdn.com/detail.jpg",
+      priceCents: 1880,
+      supplierName: "广州测试服饰有限公司",
+      supplierLocation: "广东 广州",
+      skuCount: 2,
+      availableStock: 50,
+      shipWithinHours: 48,
+      serviceLabels: ["7天无理由退货", "晚揽必赔"]
+    });
   });
 });

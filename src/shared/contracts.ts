@@ -98,6 +98,8 @@ export const offerSearchItemSchema = z.object({
   supplierName: z.string().optional(),
   supplierLocation: z.string().optional(),
   supplierYears: z.number().int().nonnegative().optional(),
+  skuCount: z.number().int().positive().optional(),
+  availableStock: z.number().int().nonnegative().optional(),
   monthlySoldCount: z.number().int().nonnegative().optional(),
   repurchaseRatePercent: z.number().nonnegative().optional(),
   qualityScore: z.number().nonnegative().optional(),

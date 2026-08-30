@@ -3,11 +3,11 @@ import type {
   GetProductInfoInput,
   SearchOffersInput
 } from "./connector.js";
-import type { OfferSearchResult, OfferSnapshot } from "../../shared/contracts.js";
+import { offerSearchResultSchema, type OfferSearchItem, type OfferSearchResult, type OfferSnapshot } from "../../shared/contracts.js";
 import { Alibaba1688ApiClient, AlibabaApiError } from "./api-client.js";
 import type { AlibabaAuthorization, AlibabaAuthorizationRepository } from "./auth-store.js";
 import { AlibabaOAuthClient } from "./oauth.js";
-import { mapAlibabaProductInfo } from "./product-mapper.js";
+import { mapAlibabaProductInfo, mapAlibabaProductInfoSearchEnrichment } from "./product-mapper.js";
 import { mapAlibabaImageSearch, mapAlibabaKeywordSearch } from "./search-mapper.js";
 
 export class AlibabaAuthorizationRequiredError extends Error {}
@@ -60,14 +60,18 @@ export class RealAlibaba1688Connector implements Alibaba1688Connector {
   }
 
   private async fetchProduct(authorization: AlibabaAuthorization, offerId: string) {
-    const payload = await this.apiClient.call(
+    const payload = await this.fetchProductPayload(authorization, offerId);
+    return mapAlibabaProductInfo(payload, offerId);
+  }
+
+  private fetchProductPayload(authorization: AlibabaAuthorization, offerId: string) {
+    return this.apiClient.call(
       "com.alibaba.fenxiao",
       "alibaba.fenxiao.productInfo.get",
       "1",
       authorization.accessToken,
       { offerId }
     );
-    return mapAlibabaProductInfo(payload, offerId);
   }
 
   private async fetchSearch(
@@ -92,12 +96,13 @@ export class RealAlibaba1688Connector implements Alibaba1688Connector {
         authorization.accessToken,
         { param: JSON.stringify(param) }
       );
-      return mapAlibabaKeywordSearch(payload, {
+      const result = mapAlibabaKeywordSearch(payload, {
         page: input.page,
         pageSize: input.pageSize,
         sortBy: input.sortBy,
         sortOrder: input.sortOrder
       });
+      return this.enrichSearchResult(authorization, result);
     }
 
     const payload = await this.apiClient.call(
@@ -115,17 +120,70 @@ export class RealAlibaba1688Connector implements Alibaba1688Connector {
         ...(input.priceMaxCents !== undefined ? { priceEnd: centsToYuan(input.priceMaxCents) } : {})
       }
     );
-    return mapAlibabaImageSearch(payload, {
+    const result = mapAlibabaImageSearch(payload, {
       source: input.mode,
       sortBy: input.sortBy,
       sortOrder: input.sortOrder
     });
+    return this.enrichSearchResult(authorization, result);
+  }
+
+  private async enrichSearchResult(
+    authorization: AlibabaAuthorization,
+    result: OfferSearchResult
+  ): Promise<OfferSearchResult> {
+    let failed = 0;
+    const items = await mapWithConcurrency(result.items, 5, async (item) => {
+      try {
+        const payload = await this.fetchProductPayload(authorization, item.offerId);
+        const enrichment = mapAlibabaProductInfoSearchEnrichment(payload, item.offerId);
+        return mergeSearchItem(item, enrichment);
+      } catch {
+        failed += 1;
+        return item;
+      }
+    });
+    if (failed > 0) {
+      console.warn(`[1688] ${failed}/${result.items.length} 个搜索结果未能补充商品详情，已保留原搜索数据`);
+    }
+    return offerSearchResultSchema.parse({ ...result, items });
   }
 
   private looksLikeExpiredToken(error: unknown) {
     if (!(error instanceof AlibabaApiError)) return false;
     return /token|授权|401/i.test(`${error.code ?? ""} ${error.message}`);
   }
+}
+
+function mergeSearchItem(
+  item: OfferSearchItem,
+  enrichment: ReturnType<typeof mapAlibabaProductInfoSearchEnrichment>
+): OfferSearchItem {
+  return {
+    ...item,
+    ...enrichment,
+    priceCents: item.priceCents ?? enrichment.priceCents,
+    tags: [...new Set(item.tags)],
+    serviceLabels: [...new Set([...(item.serviceLabels ?? []), ...(enrichment.serviceLabels ?? [])])]
+  };
+}
+
+async function mapWithConcurrency<T, R>(
+  values: T[],
+  concurrency: number,
+  mapper: (value: T, index: number) => Promise<R>
+): Promise<R[]> {
+  const results = new Array<R>(values.length);
+  let nextIndex = 0;
+  const workers = Array.from({ length: Math.min(concurrency, values.length) }, async () => {
+    while (nextIndex < values.length) {
+      const index = nextIndex;
+      nextIndex += 1;
+      results[index] = await mapper(values[index]!, index);
+    }
+  });
+  await Promise.all(workers);
+  return results;
 }
 
 function centsToYuan(cents: number): string {

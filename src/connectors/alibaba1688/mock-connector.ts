@@ -49,6 +49,11 @@ export class MockAlibaba1688Connector implements Alibaba1688Connector {
         priceCents: 2990,
         soldCount: 100,
         supplierName: "本地开发模拟供应商",
+        supplierLocation: "广东 广州",
+        skuCount: 2,
+        availableStock: 180,
+        shipWithinHours: 48,
+        serviceLabels: ["7天无理由退货", "本地详情补全示例"],
         tags: ["本地模拟数据"],
         source: input.mode
       }],

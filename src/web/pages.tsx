@@ -496,6 +496,8 @@ function SearchOfferGrid({ offers, selected, onChange, onDistributeOne }: { offe
     const monthlyVolume = offer.monthlySoldCount ?? offer.soldCount;
     const facts = [
       monthlyVolume === undefined ? undefined : ["月代发", String(monthlyVolume)],
+      offer.availableStock === undefined ? undefined : ["可售库存", String(offer.availableStock)],
+      offer.skuCount === undefined ? undefined : ["SKU", String(offer.skuCount)],
       offer.repurchaseRatePercent === undefined ? undefined : ["复购率", `${offer.repurchaseRatePercent}%`],
       offer.qualityScore === undefined ? undefined : ["质量分", String(offer.qualityScore)],
       offer.qualityRefundRatePercent === undefined ? undefined : ["品质退款", `${offer.qualityRefundRatePercent}%`]

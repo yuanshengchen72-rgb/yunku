@@ -88,6 +88,43 @@ function nonnegativeInteger(value: unknown): number {
   return Number.isFinite(number) && number >= 0 ? Math.floor(number) : 0;
 }
 
+function optionalNonnegativeInteger(value: unknown): number | undefined {
+  if (value === undefined || value === null || value === "") return undefined;
+  const match = String(value).replace(/,/g, "").match(/\d+(?:\.\d+)?/);
+  if (!match) return undefined;
+  const number = Number(match[0]);
+  return Number.isFinite(number) && number >= 0 ? Math.floor(number) : undefined;
+}
+
+function nestedRecord(record: UnknownRecord, keys: string[]): UnknownRecord | undefined {
+  return asRecord(firstValue(record, keys));
+}
+
+function optionalText(value: unknown): string | undefined {
+  if (value === undefined || value === null) return undefined;
+  const text = String(value).trim();
+  return text || undefined;
+}
+
+function collectLabels(value: unknown, result: string[]): void {
+  const add = (candidate: unknown) => {
+    const label = optionalText(candidate);
+    if (label && !result.includes(label)) result.push(label);
+  };
+  if (Array.isArray(value)) {
+    for (const item of value) collectLabels(item, result);
+    return;
+  }
+  const record = asRecord(value);
+  if (record) {
+    add(firstValue(record, ["serviceName", "name", "label", "title", "description", "value"]));
+    return;
+  }
+  if (typeof value === "string") {
+    for (const item of value.split(/[,，|]/)) add(item);
+  }
+}
+
 function skuAttributes(sku: UnknownRecord): Record<string, string> {
   const result: Record<string, string> = {};
   const attributes = firstValue(sku, ["attributes", "skuAttributes", "specAttrs"]);
@@ -170,4 +207,84 @@ export function mapAlibabaProductInfo(payload: unknown, requestedOfferId: string
     skus: skus(product, offerId),
     importedAt: new Date().toISOString()
   });
+}
+
+export interface AlibabaProductSearchEnrichment {
+  title?: string;
+  imageUrl?: string;
+  priceCents?: number;
+  supplierName?: string;
+  supplierLocation?: string;
+  skuCount?: number;
+  availableStock?: number;
+  shipWithinHours?: number;
+  serviceLabels?: string[];
+}
+
+/**
+ * Extracts the subset of productInfo.get that is useful on a search card.
+ * The API model has accumulated several field aliases over time, so this is
+ * intentionally tolerant and only returns fields that were actually present.
+ */
+export function mapAlibabaProductInfoSearchEnrichment(
+  payload: unknown,
+  requestedOfferId: string
+): AlibabaProductSearchEnrichment {
+  const product = findProductRecord(payload);
+  const snapshot = mapAlibabaProductInfo(payload, requestedOfferId);
+  const supplier = nestedRecord(product, ["supplierInfo", "companyInfo", "sellerInfo"]);
+  const shipping = nestedRecord(product, ["productShippingInfo", "shippingInfo", "logisticsInfo"]);
+  const tradeService = nestedRecord(product, ["offerTradeServiceInfo", "tradeServiceInfo", "serviceInfo"]);
+
+  const supplierName = optionalText(firstValue(product, ["supplierName", "companyName", "sellerName"])
+    ?? (supplier ? firstValue(supplier, ["companyName", "supplierName", "sellerName", "name"]) : undefined));
+  const directLocation = optionalText(firstValue(product, [
+    "supplierLocation", "companyLocation", "sendGoodsAddress", "shipFrom", "location"
+  ]) ?? (shipping ? firstValue(shipping, ["sendGoodsAddress", "shipFrom", "location", "address"]) : undefined));
+  const locationParts = supplier ? [
+    firstValue(supplier, ["province", "provinceName"]),
+    firstValue(supplier, ["city", "cityName"]),
+    firstValue(supplier, ["district", "districtName"])
+  ].map(optionalText).filter((value): value is string => Boolean(value)) : [];
+  const supplierLocation = directLocation
+    ?? (locationParts.length ? [...new Set(locationParts)].join(" ") : undefined);
+
+  const skuSource = firstValue(product, ["skuInfos", "productSkuInfos", "skuList", "skus", "skuInfoList"]);
+  const skuRecords = Array.isArray(skuSource) ? skuSource.map(asRecord).filter(Boolean) as UnknownRecord[] : [];
+  const stockValues = skuRecords
+    .map((sku) => optionalNonnegativeInteger(firstValue(sku, ["amountOnSale", "canBookCount", "stock", "availableStock"])))
+    .filter((value): value is number => value !== undefined);
+  const topLevelStock = optionalNonnegativeInteger(firstValue(product, ["amountOnSale", "stock", "availableStock"]));
+  const availableStock = stockValues.length
+    ? stockValues.reduce((sum, value) => sum + value, 0)
+    : topLevelStock;
+
+  const shipWithinHours = optionalNonnegativeInteger(firstValue(product, [
+    "shipWithinHours", "deliveryHours", "sendGoodsHours", "deliveryTime"
+  ]) ?? (shipping ? firstValue(shipping, ["shipWithinHours", "deliveryHours", "sendGoodsHours", "deliveryTime"]) : undefined)
+    ?? (tradeService ? firstValue(tradeService, ["shipWithinHours", "deliveryHours", "sendGoodsHours"]) : undefined));
+
+  const serviceLabels: string[] = [];
+  for (const key of [
+    "serviceLabels", "serviceTags", "serviceFeatures", "serviceList", "tradeServices",
+    "guaranteeTerms", "supportServices", "offerServiceList"
+  ]) collectLabels(product[key], serviceLabels);
+  if (tradeService) {
+    for (const key of ["serviceLabels", "serviceTags", "labels", "services"]) {
+      collectLabels(tradeService[key], serviceLabels);
+    }
+  }
+
+  const minimumPrice = Math.min(...snapshot.skus.map((sku) => sku.priceCents));
+  return {
+    ...(snapshot.title && snapshot.title !== "未命名商品" ? { title: snapshot.title } : {}),
+    ...(snapshot.imageUrls[0] ? { imageUrl: snapshot.imageUrls[0] } : {}),
+    ...(Number.isFinite(minimumPrice) && minimumPrice > 0 ? { priceCents: minimumPrice } : {}),
+    ...(supplierName ? { supplierName } : {}),
+    ...(supplierLocation ? { supplierLocation } : {}),
+    ...(skuRecords.length ? { skuCount: skuRecords.length } : {}),
+    ...(availableStock !== undefined ? { availableStock } : {}),
+    ...(shipWithinHours !== undefined ? { shipWithinHours } : {}),
+    ...(serviceLabels.length ? { serviceLabels } : {})
+  };
 }
