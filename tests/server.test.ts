@@ -140,7 +140,7 @@ describe("server API", () => {
     await app.close();
   });
 
-  it("creates one distribution task per offer and store", async () => {
+  it("distributes offers evenly across selected stores", async () => {
     const app = await buildApp({ config: testConfig });
     const sessionResponse = await app.inject({
       method: "POST",
@@ -179,8 +179,9 @@ describe("server API", () => {
     });
 
     expect(response.statusCode).toBe(201);
-    expect(response.json().data).toMatchObject({ targetStoreCount: 2, taskCount: 4 });
-    expect(response.json().data.jobs).toHaveLength(4);
+    expect(response.json().data).toMatchObject({ targetStoreCount: 2, taskCount: 2 });
+    expect(response.json().data.jobs).toHaveLength(2);
+    expect(response.json().data.jobs.map((job: { storeName: string }) => job.storeName)).toEqual(["一店", "二店"]);
     const list = await app.inject({ method: "GET", url: "/api/distribution/batches", headers });
     expect(list.json().data).toHaveLength(1);
     await app.close();

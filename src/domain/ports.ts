@@ -112,6 +112,7 @@ export interface DistributionRepository {
     stores: WechatStore[];
     offers: OfferSnapshot[];
     strategy: DistributionStrategy;
+    manualAssignments?: Array<{ offerId: string; storeId: string }>;
   }): Promise<DistributionBatch>;
   listBatches(tenantId: string): Promise<DistributionBatch[]>;
   findBatch(tenantId: string, batchId: string): Promise<DistributionBatch | undefined>;
@@ -134,13 +135,15 @@ export class InMemoryDistributionRepository implements DistributionRepository {
     stores: WechatStore[];
     offers: OfferSnapshot[];
     strategy: DistributionStrategy;
+    manualAssignments?: Array<{ offerId: string; storeId: string }>;
   }): Promise<DistributionBatch> {
     const { randomUUID } = await import("node:crypto");
     const now = new Date().toISOString();
     const batches = this.records.get(tenantId) ?? [];
     const id = randomUUID();
     const offerById = new Map(input.offers.map((offer) => [offer.offerId, offer]));
-    const jobs = input.offerIds.flatMap((offerId) => input.stores.map((store) => ({
+    const assignments = resolveDistributionAssignments(input);
+    const jobs = assignments.map(({ offerId, store }) => ({
       id: randomUUID(),
       batchId: id,
       offerId,
@@ -151,7 +154,7 @@ export class InMemoryDistributionRepository implements DistributionRepository {
       statusMessage: "已创建铺货任务，等待执行",
       createdAt: now,
       updatedAt: now
-    })));
+    }));
     const batch: DistributionBatch = {
       id,
       recordNumber: batches.length + 1,
@@ -214,6 +217,50 @@ export class InMemoryDistributionRepository implements DistributionRepository {
     }
     return pending;
   }
+}
+
+export function resolveDistributionAssignments(input: {
+  offerIds: string[];
+  stores: WechatStore[];
+  strategy: DistributionStrategy;
+  manualAssignments?: Array<{ offerId: string; storeId: string }>;
+  random?: () => number;
+}): Array<{ offerId: string; store: WechatStore }> {
+  if (input.stores.length === 0) return [];
+  const storeById = new Map(input.stores.map((store) => [store.id, store]));
+  if (input.strategy === "MANUAL") {
+    const manualByOffer = new Map((input.manualAssignments ?? []).map((item) => [item.offerId, item.storeId]));
+    return input.offerIds.map((offerId) => {
+      const store = storeById.get(manualByOffer.get(offerId) ?? "");
+      if (!store) throw new Error(`商品 ${offerId} 尚未选择铺货店铺`);
+      return { offerId, store };
+    });
+  }
+
+  const random = input.random ?? Math.random;
+  if (input.strategy === "RANDOM") {
+    return input.offerIds.map((offerId) => ({
+      offerId,
+      store: input.stores[Math.floor(random() * input.stores.length)]!
+    }));
+  }
+
+  const offerIds = input.strategy === "RANDOM_AVERAGED"
+    ? shuffle(input.offerIds, random)
+    : [...input.offerIds];
+  return offerIds.map((offerId, index) => ({
+    offerId,
+    store: input.stores[index % input.stores.length]!
+  }));
+}
+
+function shuffle<T>(values: T[], random: () => number): T[] {
+  const result = [...values];
+  for (let index = result.length - 1; index > 0; index -= 1) {
+    const target = Math.floor(random() * (index + 1));
+    [result[index], result[target]] = [result[target]!, result[index]!];
+  }
+  return result;
 }
 
 export function maskAppId(appId: string): string {

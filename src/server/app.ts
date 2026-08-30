@@ -357,7 +357,8 @@ export async function buildApp(options: BuildAppOptions) {
         offerIds: body.offerIds,
         stores: selectedStores.filter((store) => store !== undefined),
         offers: selectedOffers,
-        strategy: body.strategy
+        strategy: body.strategy,
+        ...(body.manualAssignments ? { manualAssignments: body.manualAssignments } : {})
       });
       const batch = options.config.nodeEnv === "test"
         ? await distributionExecutor.runBatch(session.tenantId, createdBatch.id) ?? createdBatch

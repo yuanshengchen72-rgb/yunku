@@ -35,7 +35,7 @@ export const distributionStrategySchema = z.enum([
   "ORDERED_AVERAGED",
   "RANDOM_AVERAGED",
   "RANDOM",
-  "REPEATED"
+  "MANUAL"
 ]);
 
 export type DistributionStrategy = z.infer<typeof distributionStrategySchema>;
@@ -70,7 +70,31 @@ export type BindWechatStoreRequest = z.infer<typeof bindWechatStoreRequestSchema
 export const createDistributionBatchRequestSchema = z.object({
   offerIds: z.array(z.string().regex(/^\d{6,30}$/)).min(1).max(20),
   storeIds: z.array(z.string().uuid()).min(1),
-  strategy: distributionStrategySchema
+  strategy: distributionStrategySchema,
+  manualAssignments: z.array(z.object({
+    offerId: z.string().regex(/^\d{6,30}$/),
+    storeId: z.string().uuid()
+  })).max(20).optional()
+}).superRefine((value, context) => {
+  if (value.strategy !== "MANUAL") return;
+  const assignments = value.manualAssignments ?? [];
+  const assignmentByOffer = new Map(assignments.map((item) => [item.offerId, item.storeId]));
+  if (assignmentByOffer.size !== value.offerIds.length
+    || value.offerIds.some((offerId) => !assignmentByOffer.has(offerId))) {
+    context.addIssue({
+      code: "custom",
+      path: ["manualAssignments"],
+      message: "手动分配时需要为每个商品选择一个店铺"
+    });
+  }
+  if (assignments.some((item) => !value.offerIds.includes(item.offerId)
+    || !value.storeIds.includes(item.storeId))) {
+    context.addIssue({
+      code: "custom",
+      path: ["manualAssignments"],
+      message: "手动分配包含未选择的商品或店铺"
+    });
+  }
 });
 
 export type CreateDistributionBatchRequest = z.infer<typeof createDistributionBatchRequestSchema>;

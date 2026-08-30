@@ -15,7 +15,7 @@ import type {
   WechatStoreRepository,
   WechatStoreSecret
 } from "../domain/ports.js";
-import { maskAppId } from "../domain/ports.js";
+import { maskAppId, resolveDistributionAssignments } from "../domain/ports.js";
 import {
   distributionBatchSchema,
   distributionJobSchema,
@@ -277,6 +277,7 @@ class MySqlDistributionRepository implements DistributionRepository {
     stores: WechatStore[];
     offers: OfferSnapshot[];
     strategy: DistributionStrategy;
+    manualAssignments?: Array<{ offerId: string; storeId: string }>;
   }): Promise<DistributionBatch> {
     const countRows = await this.database.select({ value: count() }).from(distributionBatches)
       .where(eq(distributionBatches.tenantId, tenantId));
@@ -284,7 +285,8 @@ class MySqlDistributionRepository implements DistributionRepository {
     const recordNumber = Number(countRows[0]?.value ?? 0) + 1;
     const now = new Date();
     const offerById = new Map(input.offers.map((offer) => [offer.offerId, offer]));
-    const jobs = input.offerIds.flatMap((offerId) => input.stores.map((store) => ({
+    const assignments = resolveDistributionAssignments(input);
+    const jobs = assignments.map(({ offerId, store }) => ({
       id: randomUUID(),
       tenantId,
       batchId: id,
@@ -296,7 +298,7 @@ class MySqlDistributionRepository implements DistributionRepository {
       statusMessage: "已创建铺货任务，等待执行",
       createdAt: now,
       updatedAt: now
-    })));
+    }));
     await this.database.transaction(async (transaction) => {
       await transaction.insert(distributionBatches).values({
         id,
