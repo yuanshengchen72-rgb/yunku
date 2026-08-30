@@ -1,0 +1,38 @@
+name: Export container image
+
+on:
+  workflow_dispatch:
+    inputs:
+      image_tag:
+        description: GHCR image tag to export
+        required: true
+        default: sha-6382a77
+
+permissions:
+  contents: read
+  packages: read
+
+jobs:
+  export:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Sign in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Pull image
+        run: docker pull --platform linux/amd64 "ghcr.io/${{ github.repository }}:${{ inputs.image_tag }}"
+
+      - name: Save image
+        run: docker save --output /tmp/dianchao-image.tar "ghcr.io/${{ github.repository }}:${{ inputs.image_tag }}"
+
+      - name: Upload image artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: dianchao-image-${{ inputs.image_tag }}
+          path: /tmp/dianchao-image.tar
+          compression-level: 0
+          retention-days: 1
